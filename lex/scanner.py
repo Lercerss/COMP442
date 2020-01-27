@@ -189,9 +189,9 @@ class SymbolHandler(CallableStateMachine):
 
     def _handle_first_symbol(self, char):
         if char in SINGLE_SYMBOL:
-            self.scanner.lexeme += char
             self.scanner.token_type = self.SYMBOL_TYPES[char]
-            self.success(char)
+            self.scanner.lexeme += char
+            self.success()
         elif char in DUAL_SYMBOL:
             self.symbol_types = self.SYMBOL_TYPES[char]
             self.transition(char, self._handle_dual_symbol)
@@ -223,14 +223,19 @@ class SymbolHandler(CallableStateMachine):
         if char == "*":
             self.transition(char, self._handle_block_star)
         else:
+            if char == "\n":
+                self.scanner.line_no += 1
             self.repeat(char)
 
     def _handle_block_star(self, char):
         if char == "/":
-            self.success(char)
+            self.scanner.lexeme += char
+            self.success()
         elif char == "*":
             self.repeat(char)
         else:
+            if char == "\n":
+                self.scanner.line_no += 1
             self.transition(char, self._handle_block_comment)
 
 
@@ -283,6 +288,8 @@ class Scanner:
     def _handle_empty(self, char):
         """Default case when lexeme is empty"""
         if char in WHITESPACE:
+            if char == "\n":
+                self.line_no += 1
             return
 
         self.token_line_no = self.line_no
@@ -313,13 +320,10 @@ class Scanner:
     def _handle(self, char):
         if char is None:
             self.tokenized = True
-            self.backtrack = None
+            self.token_type = Generic.EOF
             return
 
         self.handler(char)
-
-        if char == "\n":
-            self.line_no += 1
 
     def _reset(self):
         self.handler = self._handle_empty
@@ -333,7 +337,7 @@ class Scanner:
             return
         char_generator = iter(src)
 
-        while self.backtrack is not None:
+        while self.token_type is not Generic.EOF:
             self._reset()
             if self.backtrack:
                 char = self.backtrack

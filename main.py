@@ -4,13 +4,13 @@ from lex import Scanner
 from lex.output import TokenOutput
 
 parser = argparse.ArgumentParser()
-parser.add_argument("file", help="Source file")
+parser.add_argument("file", type=argparse.FileType('r'), help="Source file")
 
 
 def main():
     args = parser.parse_args()
-    scanner = Scanner(open(args.file, "r"))
-    out = TokenOutput(args.file)
+    scanner = Scanner(args.file)
+    out = TokenOutput(args.file.name)
     for token in scanner:
         out.write(token)
 

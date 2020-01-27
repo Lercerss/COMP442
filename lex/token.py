@@ -11,6 +11,7 @@ class Generic(TokenType):
     ID = auto()
     BLOCK_CMT = auto()
     INLINE_CMT = auto()
+    EOF = auto()
 
 
 class Literals(TokenType):
@@ -79,12 +80,20 @@ class Errors(TokenType):
 
 
 class Token:
-    def __init__(self, token_type, lexeme, location):
+    ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r",})
+
+    def __init__(self, token_type: TokenType, lexeme: str, location: int):
         self.token_type = token_type
         self.lexeme = lexeme
         self.location = location
 
     def __str__(self):
+        format_str = "[{token_type}, {lexeme}, {location}]"
         if isinstance(self.token_type, Errors):
-            return '{token_type}: "{lexeme}": line {location}.'.format(**self.__dict__)
-        return "[{token_type}, {lexeme}, {location}]".format(**self.__dict__)
+            format_str = '{token_type}: "{lexeme}": line {location}.'
+
+        return format_str.format(
+            lexeme=self.lexeme.translate(self.ESCAPING),
+            token_type=self.token_type,
+            location=self.location,
+        )
