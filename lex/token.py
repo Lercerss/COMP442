@@ -97,3 +97,17 @@ class Token:
             token_type=self.token_type,
             location=self.location,
         )
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Token)
+            and self.token_type == other.token_type
+            and self.lexeme == other.lexeme
+        )
+
+    def __repr__(self):
+        return "Token({token_type}, {lexeme}, {location})".format(
+            token_type=Enum.__str__(self.token_type),  # Bypass overriden __str__
+            lexeme=repr(self.lexeme),
+            location=self.location,
+        )

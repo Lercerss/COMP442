@@ -53,12 +53,11 @@ class CallableDFA:
 
 class NumericalHandler(CallableDFA):
     r"""Handles the following state transitions:
-    numerical -> (integer) -> point -> (valid-float) <--> float
-          \->  (zero)  ---/                  \-> exponent  ->  (e-zero)
-                                                  |  \- signed -/
-                                                   \-----> \-> (digit)
+    numerical -> (integer) -> dot -> (valid-float) <--> float
+          \->  (zero)  ---/                \-> exponent  ->  (e-zero)
+                                                |  \- signed -/
+                                                 \-----> \-> (digit)
     """
-    # TODO "100. ", "100.id", "100.0.0"
 
     IDENTIFIER_CHARS = LETTER.union("_").difference("e")
 
@@ -102,7 +101,7 @@ class NumericalHandler(CallableDFA):
 
     def _handle_zero(self, char):
         if char == ".":
-            self.transition(char, self._handle_point)
+            self.transition(char, self._handle_dot)
         elif char in DIGIT:
             self.transition(char, self._handle_error)
         else:
@@ -110,16 +109,19 @@ class NumericalHandler(CallableDFA):
 
     def _handle_integer(self, char):
         if char == ".":
-            self.transition(char, self._handle_point)
+            self.transition(char, self._handle_dot)
         elif char in DIGIT:
             self.repeat(char)
         else:
             self.success(char)
 
-    def _handle_point(self, char):
+    def _handle_dot(self, char):
         if char in DIGIT:
             self.transition(char, self._handle_valid_float)
             self.scanner.token_type = Literals.FLOAT_LITERAL
+        elif char in ALPHANUM:
+            self.scanner.lexeme = self.scanner.lexeme[:-1]
+            super().success('.' + char)
         else:
             self.forward(char, self._handle_error)
 
@@ -361,10 +363,14 @@ class Scanner:
 
         while self.token_type is not Generic.EOF:
             self._reset()
-            if self.backtrack:
-                char = self.backtrack
+            backtrack = self.backtrack
+            while len(backtrack) > 0:
                 self.backtrack = ""
-                self._handle(char)
+                self._handle(backtrack[0])
+                if self.tokenized:
+                    yield Token(self.token_type, self.lexeme, self.token_line_no)
+                    self._reset()
+                backtrack = backtrack[1:] + self.backtrack
 
             while not self.tokenized:
                 self._handle(next(char_generator, None))
