@@ -1,0 +1,12 @@
+class MyClass inherits Other {
+    // MyClass has some doc
+    private float _member1;
+    public integer member2;
+
+    public method(float test){
+        float good = 12.345e-78
+        float okay = 0.0
+        return okay / good * test
+    }
+    /* I think this is good */
+}
