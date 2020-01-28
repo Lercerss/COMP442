@@ -9,16 +9,19 @@ from .characters import (
     DUAL_SYMBOL,
     LETTER,
     NON_ZERO,
+    NON_ALPHA,
     SINGLE_SYMBOL,
     SYMBOL,
     WHITESPACE,
 )
 
 
-class CallableStateMachine:
+class CallableDFA:
+    """Base class defining behavior of a callable DFA"""
+
     def __init__(self, scanner):
         self.scanner = scanner
-        self.handler = self._default
+        self.state = self._default
 
     def _default(self, char):
         """Forward character to the scanner's error handler"""
@@ -26,11 +29,11 @@ class CallableStateMachine:
         self.scanner.handler(char)
 
     def __call__(self, char):
-        self.handler(char)
+        self.state(char)
 
     def transition(self, char, new_state):
         """Change state and handle the received character"""
-        self.handler = new_state
+        self.state = new_state
         self.scanner.lexeme += char
 
     def repeat(self, char):
@@ -44,11 +47,11 @@ class CallableStateMachine:
 
     def forward(self, char, state):
         """Change state without handling the received character"""
-        self.handler = state
-        self.handler(char)
+        self.state = state
+        self.state(char)
 
 
-class NumericalHandler(CallableStateMachine):
+class NumericalHandler(CallableDFA):
     r"""Handles the following state transitions:
     numerical -> (integer) -> point -> (valid-float) <--> float
           \->  (zero)  ---/                  \-> exponent  ->  (e-zero)
@@ -57,14 +60,30 @@ class NumericalHandler(CallableStateMachine):
     """
     # TODO "100. ", "100.id", "100.0.0"
 
+    IDENTIFIER_CHARS = LETTER.union("_").difference("e")
+
     def __init__(self, scanner):
         super().__init__(scanner)
-        self.handler = self._handle_numerical
+        self.state = self._handle_numerical
+
+    def success(self, char):
+        if char in NON_ALPHA or isinstance(self.scanner.token_type, Errors):
+            super().success(char)
+        else:
+            self.forward(char, self._handle_error)
 
     def _handle_error(self, char):
         """Trap state, captures characters until whitespace or symbol"""
-        self.scanner.token_type = Errors.INVALID_NUMBER
-        if char in ALPHANUM:
+        if isinstance(self.scanner.token_type, Errors):
+            if (
+                self.scanner.token_type is Errors.INVALID_NUMBER
+                and char in self.IDENTIFIER_CHARS
+            ):
+                self.scanner.token_type = Errors.INVALID_IDENTIFIER
+        else:
+            self.scanner.token_type = Errors.INVALID_NUMBER
+
+        if char in ALPHANUM.union("."):
             self.scanner.lexeme += char
         else:
             self.success(char)
@@ -105,7 +124,6 @@ class NumericalHandler(CallableStateMachine):
             self.forward(char, self._handle_error)
 
     def _handle_valid_float(self, char):
-
         if char == "e":
             self.transition(char, self._handle_exponent)
         elif char == "0":
@@ -154,7 +172,7 @@ class NumericalHandler(CallableStateMachine):
             self.success(char)
 
 
-class SymbolHandler(CallableStateMachine):
+class SymbolHandler(CallableDFA):
     r"""Handles the following state transitions:
     (first-symbol) -> (dual-symbol) -> block-comment <--> (star)
                                 \-> (inline-comment)
@@ -184,16 +202,16 @@ class SymbolHandler(CallableStateMachine):
 
     def __init__(self, scanner):
         super().__init__(scanner)
-        self.handler = self._handle_first_symbol
+        self.state = self._handle_first_symbol
         self.symbol_types = self.SYMBOL_TYPES
 
     def _handle_first_symbol(self, char):
         if char in SINGLE_SYMBOL:
-            self.scanner.token_type = self.SYMBOL_TYPES[char]
+            self.scanner.token_type = self.symbol_types[char]
             self.scanner.lexeme += char
             self.success()
         elif char in DUAL_SYMBOL:
-            self.symbol_types = self.SYMBOL_TYPES[char]
+            self.symbol_types = self.symbol_types[char]
             self.transition(char, self._handle_dual_symbol)
         else:
             self._default(char)  # Invalid character
@@ -239,7 +257,7 @@ class SymbolHandler(CallableStateMachine):
             self.transition(char, self._handle_block_comment)
 
 
-class WordHandler(CallableStateMachine):
+class WordHandler(CallableDFA):
 
     KEYWORDS = {
         word.name.lower(): word
@@ -248,9 +266,10 @@ class WordHandler(CallableStateMachine):
 
     def __init__(self, scanner):
         super().__init__(scanner)
-        self.handler = self._handle_first_letter
+        self.state = self._handle_first_letter
 
     def _handle_first_letter(self, char):
+        """Initial state"""
         if char in LETTER:
             self.transition(char, self._handle_identifier)
         elif char in ALPHANUM:
@@ -286,7 +305,7 @@ class Scanner:
         self.backtrack = ""
 
     def _handle_empty(self, char):
-        """Default case when lexeme is empty"""
+        """Initial state"""
         if char in WHITESPACE:
             if char == "\n":
                 self.line_no += 1
@@ -304,6 +323,7 @@ class Scanner:
         self.handler(char)  # Forward
 
     def _handle_error(self, char):
+        """Trap state"""
         if self.token_type:
             if char in ALPHANUM:
                 self.lexeme += char
@@ -315,9 +335,11 @@ class Scanner:
             self.token_type = Errors.INVALID_IDENTIFIER
         else:
             self.tokenized = True
+            self.lexeme += char
             self.token_type = Errors.INVALID_CHARACTER
 
     def _handle(self, char):
+        """Helper to call handler"""
         if char is None:
             self.tokenized = True
             self.token_type = Generic.EOF

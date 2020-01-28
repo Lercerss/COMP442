@@ -13,3 +13,5 @@ ALPHANUM = LETTER.union(DIGIT).union(set("_"))
 SINGLE_SYMBOL = {"+", "-", "*", ";", ".", ",", "(", ")", "{", "}", "[", "]"}
 DUAL_SYMBOL = {"=", "<", ">", "/", ":"}
 SYMBOL = SINGLE_SYMBOL.union(DUAL_SYMBOL)
+VALID_CHARACTER = ALPHANUM.union(WHITESPACE).union(SYMBOL)
+NON_ALPHA = VALID_CHARACTER.difference(ALPHANUM)
