@@ -20,8 +20,8 @@ class TokenOutput:
             self._write_out(token)
 
     def _write_out(self, token: Token):
-        if self.last_line < token.location:
-            self.last_line = token.location
+        if self.last_line < token.location.line:
+            self.last_line = token.location.line
             self.out_file.write("\n")
 
         self.out_file.write(str(token) + " ")

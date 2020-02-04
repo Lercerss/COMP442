@@ -244,8 +244,7 @@ class SymbolHandler(CallableDFA):
         if char == "*":
             self.transition(char, self._handle_block_star)
         else:
-            if char == "\n":
-                self.scanner.line_no += 1
+            self.scanner.increment_line_no(char)
             self.repeat(char)
 
     def _handle_block_star(self, char):
@@ -256,8 +255,7 @@ class SymbolHandler(CallableDFA):
         elif char == "*":
             self.repeat(char)
         else:
-            if char == "\n":
-                self.scanner.line_no += 1
+            self.scanner.increment_line_no(char)
             self.transition(char, self._handle_block_comment)
 
 
@@ -302,20 +300,28 @@ class Scanner:
         self.source = source
         self.line_no = 1
         self.token_line_no = 1
+        self.column_no = 1
+        self.token_column_no = 1
         self.handler = self._handle_empty
         self.lexeme = ""
         self.tokenized = False
         self.token_type = None
         self.backtrack = ""
 
+    def increment_line_no(self, char):
+        if char == "\n":
+            self.line_no += 1
+            self.column_no = 0
+
     def _handle_empty(self, char):
         """Initial state"""
         if char in WHITESPACE:
-            if char == "\n":
-                self.line_no += 1
+            self.increment_line_no(char)
             return
 
+        # Start of a new token
         self.token_line_no = self.line_no
+        self.token_column_no = self.column_no
         if char in DIGIT:
             self.handler = NumericalHandler(self)
         elif char in ALPHANUM:
@@ -348,7 +354,7 @@ class Scanner:
         if not self.lexeme:
             self.token_type = Generic.EOF
         else:
-            # Force tokenization of the handler, then rollback
+            # Force tokenization of the current handler, then rollback
             self.handler(" ")
             self.lexeme = self.lexeme[:-1]
 
@@ -359,12 +365,18 @@ class Scanner:
             return
 
         self.handler(char)
+        self.column_no += 1
 
     def _reset(self):
         self.handler = self._handle_empty
         self.lexeme = ""
         self.tokenized = False
         self.token_type = None
+
+    def _make_token(self):
+        return Token(
+            self.token_type, self.lexeme, (self.token_line_no, self.token_column_no)
+        )
 
     def __iter__(self) -> Generator[Token, None, None]:
         src = self.source.read()
@@ -375,15 +387,17 @@ class Scanner:
         while self.token_type is not Generic.EOF:
             self._reset()
             backtrack = self.backtrack
+            self.column_no -= len(backtrack)
             while len(backtrack) > 0:
                 self.backtrack = ""
                 self._handle(backtrack[0])
                 if self.tokenized:
-                    yield Token(self.token_type, self.lexeme, self.token_line_no)
+                    yield self._make_token()
                     self._reset()
                 backtrack = backtrack[1:] + self.backtrack
+                self.column_no -= len(self.backtrack)
 
             while not self.tokenized:
                 self._handle(next(char_generator, None))
 
-            yield Token(self.token_type, self.lexeme, self.token_line_no)
+            yield self._make_token()

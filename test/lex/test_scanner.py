@@ -10,7 +10,7 @@ class ScannerTestCase(TestCase):
     def _extract_tokens(self, scanner):
         result = defaultdict(list)
         for token in scanner:
-            result[token.location].append(token)
+            result[token.location.line].append(token)
 
         return result
 

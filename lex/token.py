@@ -1,4 +1,6 @@
+from collections import namedtuple
 from enum import Enum, unique, auto
+from typing import Tuple
 
 
 @unique
@@ -37,6 +39,7 @@ class Keywords(TokenType):
     READ = auto()
     WRITE = auto()
     MAIN = auto()
+    VOID = auto()
 
 
 class Operators(TokenType):
@@ -79,19 +82,23 @@ class Errors(TokenType):
     def __str__(self):
         return "Lexical error: " + str(self.name).replace("_", " ").lower().capitalize()
 
+Location = namedtuple('Location', ['line', 'column'])
 
 class Token:
     ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r", "\\": r"\\"})
 
-    def __init__(self, token_type: TokenType, lexeme: str, location: int):
+    def __init__(self, token_type: TokenType, lexeme: str, location: Tuple[int, int]):
+        assert len(location) == 2, "location must have line and column number"
         self.token_type = token_type
         self.lexeme = lexeme
-        self.location = location
+        self.location = Location(*location)
 
     def __str__(self):
-        format_str = "[{token_type}, {lexeme}, {location}]"
+        format_str = "[{token_type}, {lexeme}, {location.line}:{location.column}]"
         if isinstance(self.token_type, Errors):
-            format_str = '{token_type}: "{lexeme}": line {location}.'
+            format_str = (
+                '{token_type}: "{lexeme}": line {location.line}, column {location.column}.'
+            )
 
         return format_str.format(
             lexeme=self.lexeme.translate(self.ESCAPING),
@@ -107,7 +114,7 @@ class Token:
         )
 
     def __repr__(self):
-        return "Token({token_type}, {lexeme}, {location})".format(
+        return "Token({token_type}, {lexeme}, ({location[0]}, {location[1]}))".format(
             token_type=Enum.__str__(self.token_type),  # Bypass overriden __str__
             lexeme=repr(self.lexeme),
             location=self.location,

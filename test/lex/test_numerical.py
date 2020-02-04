@@ -14,8 +14,8 @@ class NumericalTestCase(TestCase):
         it = iter(scanner)
         token = next(it, None)
 
-        self.assertEqual(token, Token(token_type, input_, 0))
-        self.assertEqual(next(it), Token(Generic.EOF, "", 0))
+        self.assertEqual(token, Token(token_type, input_, (0, 0)))
+        self.assertEqual(next(it), Token(Generic.EOF, "", (0, 0)))
 
     def _many_tokens(self, inputs, types):
         scanner = self._make_scanner("".join(inputs))
@@ -24,11 +24,11 @@ class NumericalTestCase(TestCase):
         for i, type_ in enumerate(types):
             self.assertEqual(
                 next(it, None),
-                Token(type_, inputs[i].strip(), 0),
+                Token(type_, inputs[i].strip(), (0, 0)),
                 "Token {} does not match".format(i),
             )
 
-        self.assertEqual(next(it), Token(Generic.EOF, "", 0))
+        self.assertEqual(next(it), Token(Generic.EOF, "", (0, 0)))
 
     def test_integer(self):
         self._one_token("12345", Literals.INTEGER_LITERAL)
@@ -98,14 +98,13 @@ class NumericalTestCase(TestCase):
             [Literals.FLOAT_LITERAL, Symbols.DOT, Literals.INTEGER_LITERAL],
         )
         self._many_tokens(
-            ["100. "],  # 100. 
-            [Errors.INVALID_NUMBER],
+            ["100. "], [Errors.INVALID_NUMBER],  # 100.
         )
         self._many_tokens(
-            ["100.0", '.', '0'],  # 100.0.0
+            ["100.0", ".", "0"],  # 100.0.0
             [Literals.FLOAT_LITERAL, Symbols.DOT, Literals.INTEGER_LITERAL],
         )
         self._many_tokens(
-            ["100",".", "id"],  # 100.id
+            ["100", ".", "id"],  # 100.id
             [Literals.INTEGER_LITERAL, Symbols.DOT, Generic.ID],
         )
