@@ -121,7 +121,7 @@ class NumericalHandler(CallableDFA):
             self.scanner.token_type = Literals.FLOAT_LITERAL
         elif char in ALPHANUM:
             self.scanner.lexeme = self.scanner.lexeme[:-1]
-            super().success('.' + char)
+            super().success("." + char)
         else:
             self.forward(char, self._handle_error)
 
@@ -240,6 +240,7 @@ class SymbolHandler(CallableDFA):
             self.repeat(char)
 
     def _handle_block_comment(self, char):
+        self.scanner.token_type = Errors.DANGLING_BLOCK_COMMENT
         if char == "*":
             self.transition(char, self._handle_block_star)
         else:
@@ -250,6 +251,7 @@ class SymbolHandler(CallableDFA):
     def _handle_block_star(self, char):
         if char == "/":
             self.scanner.lexeme += char
+            self.scanner.token_type = Generic.BLOCK_CMT
             self.success()
         elif char == "*":
             self.repeat(char)
@@ -296,7 +298,7 @@ class Scanner:
     """Iterable scanner that yields tokens found in source"""
 
     def __init__(self, source):
-        assert source.readable()
+        assert source.readable(), "source must a readable, file-like object"
         self.source = source
         self.line_no = 1
         self.token_line_no = 1
@@ -340,11 +342,20 @@ class Scanner:
             self.lexeme += char
             self.token_type = Errors.INVALID_CHARACTER
 
+    def _handle_eof(self):
+        """End of file reached, teardown state and yield EOF token"""
+        self.tokenized = True
+        if not self.lexeme:
+            self.token_type = Generic.EOF
+        else:
+            # Force tokenization of the handler, then rollback
+            self.handler(" ")
+            self.lexeme = self.lexeme[:-1]
+
     def _handle(self, char):
         """Helper to call handler"""
         if char is None:
-            self.tokenized = True
-            self.token_type = Generic.EOF
+            self._handle_eof()
             return
 
         self.handler(char)

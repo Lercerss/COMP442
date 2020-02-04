@@ -74,13 +74,14 @@ class Errors(TokenType):
     INVALID_NUMBER = auto()
     INVALID_CHARACTER = auto()
     INVALID_IDENTIFIER = auto()
+    DANGLING_BLOCK_COMMENT = auto()
 
     def __str__(self):
         return "Lexical error: " + str(self.name).replace("_", " ").lower().capitalize()
 
 
 class Token:
-    ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r",})
+    ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r", "\\": r"\\"})
 
     def __init__(self, token_type: TokenType, lexeme: str, location: int):
         self.token_type = token_type

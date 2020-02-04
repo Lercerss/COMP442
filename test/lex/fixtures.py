@@ -87,3 +87,8 @@ SAMPLE = Fixture(
         12: [T(S.CLOSE_CBR, "}", 12), T(G.EOF, "", 12)],
     },
 )
+
+SINGLE_INLINE_CMT = Fixture(
+    io.StringIO("// This is a single line and nothing else"),
+    {1: [T(G.INLINE_CMT, "// This is a single line and nothing else", 1), T(G.EOF, "", 1)]},
+)

@@ -3,22 +3,28 @@ from unittest import TestCase
 
 from lex import Scanner
 
-from .fixtures import SAMPLE
+from .fixtures import SAMPLE, SINGLE_INLINE_CMT
 
 
 class ScannerTestCase(TestCase):
-    def __extract_tokens(self, scanner):
+    def _extract_tokens(self, scanner):
         result = defaultdict(list)
         for token in scanner:
             result[token.location].append(token)
 
         return result
 
+    def _full_scan(self, sample):
+        scanner = Scanner(sample.input)
+        result = self._extract_tokens(scanner)
+
+        for line in sample.expected.keys():
+            self.assertListEqual(sample.expected[line], result[line])
+
+        self.assertListEqual(list(sample.expected.keys()), list(result.keys()))
+
     def test_full_scan(self):
-        scanner = Scanner(SAMPLE.input)
-        result = self.__extract_tokens(scanner)
+        self._full_scan(SAMPLE)
 
-        for line in SAMPLE.expected.keys():
-            self.assertListEqual(SAMPLE.expected[line], result[line])
-
-        self.assertListEqual(list(SAMPLE.expected.keys()), list(result.keys()))
+    def test_single_inline_cmt(self):
+        self._full_scan(SINGLE_INLINE_CMT)
