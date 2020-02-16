@@ -37,7 +37,7 @@ class LeafNodeType(NodeType):
 
 
 class ASTNode:
-    def __init__(self, node_type: NodeType, token: Token):
+    def __init__(self, node_type: NodeType, token: Token = None):
         self.node_type = node_type
         self.token = token
         self.children = []
