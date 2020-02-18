@@ -26,6 +26,8 @@ class ListNodeType(NodeType):
 
 class GroupNodeType(NodeType):
     PROG = auto()
+    DATA_MEMBER = auto()
+    F_CALL = auto()
 
 
 class LeafNodeType(NodeType):

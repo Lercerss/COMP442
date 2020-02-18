@@ -82,7 +82,9 @@ class Errors(TokenType):
     def __str__(self):
         return "Lexical error: " + str(self.name).replace("_", " ").lower().capitalize()
 
-Location = namedtuple('Location', ['line', 'column'])
+
+Location = namedtuple("Location", ["line", "column"])
+
 
 class Token:
     ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r", "\\": r"\\"})
@@ -96,9 +98,7 @@ class Token:
     def __str__(self):
         format_str = "[{token_type}, {lexeme}, {location.line}:{location.column}]"
         if isinstance(self.token_type, Errors):
-            format_str = (
-                '{token_type}: "{lexeme}": line {location.line}, column {location.column}.'
-            )
+            format_str = '{token_type}: "{lexeme}": line {location.line}, column {location.column}.'
 
         return format_str.format(
             lexeme=self.lexeme.translate(self.ESCAPING),

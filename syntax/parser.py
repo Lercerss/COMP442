@@ -8,20 +8,21 @@ from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 ParserResult = namedtuple("ParserResult", ["success", "ast"])
 
 
+def skip_errors(func):
+    def wrapped(self, *args):
+        print("Entering " + func.__name__)
+        if self._skip_errors(func.__name__):
+            return False
+        return func(self, *args)
+
+    return wrapped
+
+
 class Parser:
-    @staticmethod
-    def skip_errors(func):
-        def wrapped(self, *args):
-            if self._skip_errors(func.__name__):
-                return False
-            return func(self, *args)
-
-        return wrapped
-
     def __init__(self, source, prodcution_handler=None, error_handler=None):
         self.scanner: Scanner = Scanner(source)
         self.lookahead: Token = None
-        self.previous: Token = None
+        self.current: Token = None
         self.token_iter: Generator[Token, None, None] = None
         self.prodcution_handler = prodcution_handler
         self.error_handler = error_handler
@@ -39,12 +40,28 @@ class Parser:
             self.error_handler.resume(skipped, self.lookahead)
 
     def _next(self):
-        self.previous = self.lookahead
+        self.current = self.lookahead
         self.lookahead = next(self.token_iter)
-        return self.previous
+        while self._la_in(IGNORED_TOKENS):
+            self.current = self.lookahead
+            self.lookahead = next(self.token_iter)
+        return self.current
+
+    def _panic(self, good_set, recovery_set):
+        self._on_panic(good_set)
+        skipped = []
+        while not self._la_in(recovery_set):
+            skipped.append(self._next())
+
+        self._on_panic_resume(skipped)
+        return not self._la_in(good_set)
 
     def _match(self, token_type: TokenType):
+        if self._next().token_type == token_type:
+            return True
+
         # TODO Significant error handling here?
+        self._panic([token_type], [token_type])
         return self._next().token_type == token_type
 
     def _la_in(self, set_: Set[TokenType]) -> bool:
@@ -59,24 +76,21 @@ class Parser:
         If it isn't, enter panic mode"""
         # TODO Check implementation matches expectations
         first_set = eval("FIRST" + rule)
+        first_and_follow_set = eval("FF" + rule)
+        if EPSILON in first_set:
+            first_set = first_and_follow_set
+
         if self._la_in(first_set):
             return False
 
-        self._on_panic(first_set)
-        ff_set = eval("FF" + rule)
-        skipped = []
-        while not self._la_in(ff_set):
-            skipped.append(self._next())
-
-        self._on_panic_resume(skipped)
-        return not self._la_in(first_set)
+        return self._panic(first_set, first_and_follow_set)
 
     def start(self) -> Tuple[bool, ASTNode]:
         self.token_iter = iter(self.scanner)
         self._next()
         root = ASTNode(GroupNodeType.PROG, self.lookahead)
         try:
-            if self._prog(root) and self._match(G.EOF):
+            if self._prog([root]) and self._match(G.EOF):
                 return ParserResult(True, root)
         except StopIteration:
             pass
@@ -87,17 +101,17 @@ class Parser:
         if self._la_eq(O.PLUS):
             if self._match(O.PLUS):
                 self._on_production("addOp", "'+'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.MINUS):
             if self._match(O.MINUS):
                 self._on_production("addOp", "'-'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.OR):
             if self._match(O.OR):
                 self._on_production("addOp", "'or'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         return False
 
@@ -118,6 +132,7 @@ class Parser:
     def _a_params_tail(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(S.COMMA):
             if self._match(S.COMMA) and self._expr(nodes):
+                # TODO AST
                 self._on_production("aParamsTail", "','", "expr")
                 return True
         return False
@@ -142,25 +157,15 @@ class Parser:
             elif self._la_eq(S.CLOSE_SBR):
                 if self._match(S.CLOSE_SBR):
                     self._on_production("arraySize", "'['", "']'")
-                    nodes[0].token = token
+                    # nodes[0] = None  # TODO AST?
                     return True
-        return False
-
-    @skip_errors
-    def _assign_stat(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_variable):
-            if self._variable(nodes) and self._match(S.ASSIGN) and self._expr(nodes):
-                self._on_production("assignStat", "variable", "'='", "expr")
-                # TODO AST
-                return True
-
         return False
 
     @skip_errors
     def _class_decl(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(K.CLASS):
             if self._match(K.CLASS) and self._match(G.ID):
-                id_ = self.previous
+                id_ = self.current
                 if (
                     self._opt_class_decl2(nodes)
                     and self._match(S.OPEN_CBR)
@@ -185,35 +190,40 @@ class Parser:
 
     @skip_errors
     def _expr(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_arith_expr):
-            if self._arith_expr(nodes):
+        # TODO AST
+        if self._la_in(FIRST_arith_expr) and self._arith_expr(nodes):
+            if self._la_in(FIRST_rel_op):
+                if self._rel_op(nodes) and self._arith_expr(nodes):
+                    self._on_production("relExpr", "arithExpr", "relOp", "arithExpr")
+                    self._on_production("expr", "relExpr")
+                    return True
+            elif self._la_in(FOLLOW_arith_expr):
                 self._on_production("expr", "arithExpr")
-                return True
-        elif self._la_in(FIRST_rel_expr):
-            if self._rel_expr(nodes):
-                self._on_production("expr", "relExpr")
                 return True
 
         return False
 
     @skip_errors
     def _factor(self, nodes):  # LT_AUTO_FUNCTION
-        # TODO Conflicting sets here
-        if self._la_in(FIRST_variable):
-            if self._variable(nodes):
-                self._on_production("factor", "variable")
-                return True
-        elif self._la_in(FIRST_function_call):
-            if self._function_call(nodes):
-                self._on_production("factor", "functionCall")
+        if self._la_eq(G.ID):
+            if self._nested_var_or_call(
+                nodes, end_variable=True, end_function_call=True
+            ):
+                # TODO AST
+                self._on_production(
+                    "factor",
+                    "variable"
+                    if nodes[-1].node_type == GroupNodeType.DATA_MEMBER
+                    else "functionCall",
+                )
                 return True
         elif self._la_eq(L.INTEGER_LITERAL):
             if self._match(L.INTEGER_LITERAL):
-                self._on_production("factor", "intNum")
+                self._on_production("factor", "'intNum'")
                 return True
-        elif self._la_eq(L.INTEGER_LITERAL):
-            if self._match(L.INTEGER_LITERAL):
-                self._on_production("factor", "intNum")
+        elif self._la_eq(L.FLOAT_LITERAL):
+            if self._match(L.FLOAT_LITERAL):
+                self._on_production("factor", "'floatNum'")
                 return True
         elif self._la_eq(S.OPEN_PAR):
             if (
@@ -237,7 +247,7 @@ class Parser:
     @skip_errors
     def _f_params(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_in(FIRST_type):
-            if (  # TODO all doesnt short-circuit?
+            if (
                 self._type(nodes)
                 and self._match(G.ID)
                 and self._rept_f_params2(nodes)
@@ -256,7 +266,7 @@ class Parser:
     def _f_params_tail(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(S.COMMA):
             if self._match(S.COMMA) and self._type(nodes) and self._match(G.ID):
-                id_ = self.previous
+                id_ = self.current
                 if self._rept_f_params_tail3(nodes):
                     self._on_production(
                         "fParamsTail", "','", "type", "'id'", "rept-fParamsTail3"
@@ -284,7 +294,7 @@ class Parser:
     @skip_errors
     def _func_decl(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(G.ID) and self._match(G.ID):
-            id_ = self.previous
+            id_ = self.current
             if (
                 self._la_eq(S.OPEN_PAR)
                 and self._match(S.OPEN_PAR)
@@ -337,12 +347,16 @@ class Parser:
 
     @skip_errors
     def _func_head(self, nodes):  # LT_AUTO_FUNCTION
-        # TODO Check first set
-        if self._la_in(FIRST_opt_func_head0):
+        if self._la_eq(G.ID) and self._match(G.ID):
+            if self._la_eq(S.DCOLON):
+                if not (self._match(S.DCOLON) and self._match(G.ID)):
+                    return False
+                self._on_production("opt-funcHead0", "'id'", "'sr'")
+            else:
+                self._on_production("opt-funcHead0", EPSILON)
+
             if (
-                self._opt_func_head0(nodes)
-                and self._match(G.ID)
-                and self._match(S.OPEN_PAR)
+                self._match(S.OPEN_PAR)
                 and self._f_params(nodes)
                 and self._match(S.CLOSE_PAR)
                 and self._match(S.COLON)
@@ -375,46 +389,56 @@ class Parser:
                         return True
         return False
 
-    @skip_errors
-    def _function_call(self, nodes):  # LT_AUTO_FUNCTION
-        # TODO Check first set
-        if self._la_in(FIRST_rept_function_call0):
-            if (
-                self._rept_function_call0(nodes)
-                and self._match(G.ID)
-                and self._match(S.OPEN_PAR)
-                and self._a_params(nodes)
-                and self._match(S.CLOSE_PAR)
-            ):
-                self._on_production(
-                    "functionCall",
-                    "rept-functionCall0",
-                    "'id'",
-                    "'('",
-                    "aParams",
-                    "')'",
-                )
-                return True
-        return False
+    def _nested_var_or_call(
+        self, nodes, end_variable=False, end_function_call=False
+    ):  # LT_AUTO_FUNCTION LT_NOT_FROM_GRAM
+        if self._skip_errors("_variable"):
+            return False
 
-    @skip_errors
-    def _idnest(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(G.ID) and self._match(G.ID):
             if self._la_eq(S.OPEN_PAR):
                 if (
                     self._match(S.OPEN_PAR)
                     and self._a_params(nodes)
                     and self._match(S.CLOSE_PAR)
-                    and self._match(S.DOT)
                 ):
-                    self._on_production(
-                        "idnest", "'id'", "'('", "aParams", "')'", "'.'"
-                    )
-                    return True
-            elif self._la_in(FIRST_rept_idnest1):
-                if self._rept_idnest1(nodes) and self._match(S.DOT):
-                    self._on_production("idnest", "'id'", "rept-idnest1", "'.'")
-                    return True
+                    if self._la_eq(S.DOT):
+                        if self._match(S.DOT):
+                            self._on_production(
+                                "idnest", "'id'", "'('", "aParams", "')'", "'.'"
+                            )
+                            if self._nested_var_or_call(
+                                nodes, end_variable, end_function_call
+                            ):
+                                return True
+                    elif end_function_call and self._la_in(FOLLOW_function_call):
+                        self._on_production(
+                            "functionCall",
+                            "rept-functionCall0",
+                            "'id'",
+                            "'('",
+                            "aParams",
+                            "')'",
+                        )
+                        return True
+            elif (
+                self._la_in(FIRST_rept_idnest1)
+                or self._la_eq(S.DOT)
+                or (self._la_in(FOLLOW_variable) and end_variable)
+            ):
+                if self._rept_idnest1(nodes):
+                    if self._la_eq(S.DOT):
+                        if self._match(S.DOT):
+                            self._on_production("idnest", "'id'", "rept-idnest1", "'.'")
+                            return True
+                    elif end_variable and self._la_in(FOLLOW_variable):
+                        self._on_production(
+                            "variable", "rept-variable0", "'id'", "rept-variable2"
+                        )
+                        if self._nested_var_or_call(
+                            nodes, end_variable, end_function_call
+                        ):
+                            return True
         return False
 
     @skip_errors
@@ -442,17 +466,17 @@ class Parser:
         if self._la_eq(O.MULT):
             if self._match(O.MULT):
                 self._on_production("multOp", "'*'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.DIV):
             if self._match(O.DIV):
                 self._on_production("multOp", "'/'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.AND):
             if self._match(O.AND):
                 self._on_production("multOp", "'and'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         return False
 
@@ -486,19 +510,12 @@ class Parser:
         return False
 
     @skip_errors
-    def _opt_func_head0(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_eq(G.ID):
-            if self._match(G.ID) and self._match(S.DCOLON):
-                self._on_production("opt-funcHead0", "'id'", "'sr'")
-                return True
-        elif self._la_in(FOLLOW_opt_func_head0):
-            self._on_production("opt-funcHead0", EPSILON)
-            return True
-        return False
-
-    @skip_errors
     def _prog(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_prog):
+        if (
+            self._la_in(FIRST_rept_prog0)
+            or self._la_in(FIRST_rept_prog1)
+            or self._la_eq(K.MAIN)
+        ):
             if (
                 self._rept_prog0(nodes)
                 and self._rept_prog1(nodes)
@@ -530,32 +547,32 @@ class Parser:
         if self._la_eq(O.EQ):
             if self._match(O.EQ):
                 self._on_production("relOp", "'eq'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.NEQ):
             if self._match(O.NEQ):
                 self._on_production("relOp", "'neq'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.LT):
             if self._match(O.LT):
                 self._on_production("relOp", "'lt'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.GT):
             if self._match(O.GT):
                 self._on_production("relOp", "'gt'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.LTE):
             if self._match(O.LTE):
                 self._on_production("relOp", "'leq'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.GTE):
             if self._match(O.GTE):
                 self._on_production("relOp", "'leq'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         return False
 
@@ -595,7 +612,7 @@ class Parser:
                 self._on_production("rept-fParams2", "arraySize", "rept-fParams2")
                 return True
         elif self._la_in(FOLLOW_rept_f_params2):
-            self._on_production("_rept_f_params2", EPSILON)
+            self._on_production("rept-fParams2", EPSILON)
             return True
         return False
 
@@ -621,7 +638,7 @@ class Parser:
                 )
                 return True
         elif self._la_in(FOLLOW_rept_f_params_tail3):
-            self._on_production("_rept_f_params_tail3", "")
+            self._on_production("rept-fParamsTail3", EPSILON)
             return True
         return False
 
@@ -634,20 +651,6 @@ class Parser:
                 return True
         elif self._la_in(FOLLOW_rept_func_body2):
             self._on_production("rept-funcBody2", EPSILON)
-            return True
-        return False
-
-    @skip_errors
-    def _rept_function_call0(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_idnest):
-            if self._idnest(nodes) and self._rept_function_call0(nodes):
-                # TODO AST
-                self._on_production(
-                    "rept-functionCall0", "idnest", "rept-functionCall0"
-                )
-                return True
-        elif self._la_in(FOLLOW_rept_function_call0):
-            self._on_production("rept-functionCall0", EPSILON)
             return True
         return False
 
@@ -686,7 +689,9 @@ class Parser:
         if self._la_in(FIRST_var_decl):
             if self._var_decl(nodes) and self._rept_opt_func_body01(nodes):
                 # TODO AST
-                self._on_production("rept-opt-funcBody01", "varDecl")
+                self._on_production(
+                    "rept-opt-funcBody01", "varDecl", "rept-opt-funcBody01"
+                )
                 return True
         elif self._la_in(FOLLOW_rept_opt_func_body01):
             self._on_production("rept-opt-funcBody01", EPSILON)
@@ -742,30 +747,6 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_variable0(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_idnest):
-            if self._idnest(nodes) and self._rept_variable0(nodes):
-                # TODO AST
-                self._on_production("rept-variable0", "idnest", "rept-variable0")
-                return True
-        elif self._la_in(FOLLOW_rept_variable0):
-            self._on_production("rept-variable0", EPSILON)
-            return True
-        return False
-
-    @skip_errors
-    def _rept_variable2(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_in(FIRST_indice):
-            if self._indice(nodes) and self._rept_variable2(nodes):
-                # TODO AST
-                self._on_production("rept-variable2", "indice", "rept-variable2")
-                return True
-        elif self._la_in(FOLLOW_rept_variable2):
-            self._on_production("rept-variable2", EPSILON)
-            return True
-        return False
-
-    @skip_errors
     def _rightrec_arith_expr(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_in(FIRST_add_op):
             if (
@@ -806,12 +787,12 @@ class Parser:
         if self._la_eq(O.PLUS):
             if self._match(O.PLUS):
                 self._on_production("sign", "'+'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         elif self._la_eq(O.MINUS):
             if self._match(O.MINUS):
                 self._on_production("sign", "'-'")
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 return True
         return False
 
@@ -837,17 +818,22 @@ class Parser:
 
     @skip_errors
     def _statement(self, nodes):  # LT_AUTO_FUNCTION
-        # TODO Check first set
-        if self._la_in(FIRST_assign_stat):
-            if self._assign_stat(nodes) and self._match(S.SEMI_COLON):
+        if self._la_in(FIRST_variable):
+            if self._nested_var_or_call(
+                nodes, end_variable=True, end_function_call=True
+            ):
+                last_node = nodes[-1].node_type
+                if self._la_eq(S.ASSIGN) and last_node == GroupNodeType.DATA_MEMBER:
+                    if self._match(S.ASSIGN) and self._expr(nodes):
+                        self._on_production("assignStat", "variable", "'='", "expr")
+                        if self._match(S.SEMI_COLON):
+                            self._on_production("statement", "assignStat", "';'")
+                            return True
                 # TODO AST
-                self._on_production("statement", "assignStat", "';'")
-                return True
-        elif self._la_in(FIRST_function_call):
-            if self._function_call(nodes) and self._match(S.SEMI_COLON):
-                # TODO AST
-                self._on_production("statement", "functionCall", "';'")
-                return True
+                elif self._la_eq(S.SEMI_COLON) and last_node == GroupNodeType.F_CALL:
+                    if self._match(S.SEMI_COLON):
+                        self._on_production("statement", "functionCall", "';'")
+                        return True
         elif self._la_eq(K.IF):
             if (
                 self._match(K.IF)
@@ -892,7 +878,7 @@ class Parser:
             if (
                 self._match(K.READ)
                 and self._match(S.OPEN_PAR)
-                and self._variable(nodes)
+                and self._nested_var_or_call(nodes, end_variable=True)
                 and self._match(S.CLOSE_PAR)
                 and self._match(S.SEMI_COLON)
             ):
@@ -942,17 +928,17 @@ class Parser:
     def _type(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(K.INTEGER):
             if self._match(K.INTEGER):
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 self._on_production("type", "'integer'")
                 return True
         elif self._la_eq(K.FLOAT):
             if self._match(K.FLOAT):
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 self._on_production("type", "'float'")
                 return True
         elif self._la_eq(G.ID):
             if self._match(G.ID):
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 self._on_production("type", "'id'")
                 return True
         return False
@@ -971,30 +957,15 @@ class Parser:
         return False
 
     @skip_errors
-    def _variable(self, nodes):  # LT_AUTO_FUNCTION
-        if self._la_eq(G.ID):
-            if (
-                self._rept_variable0(nodes)
-                and self._match(G.ID)
-                and self._rept_variable2(nodes)
-            ):
-                # TODO AST
-                self._on_production(
-                    "variable", "rept-variable0", "'id'", "rept-variable2"
-                )
-                return True
-        return False
-
-    @skip_errors
     def _visibility(self, nodes):  # LT_AUTO_FUNCTION
         if self._la_eq(K.PUBLIC):
             if self._match(K.PUBLIC):
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 self._on_production("visibility", "'public'")
                 return True
         elif self._la_eq(K.PRIVATE):
             if self._match(K.PRIVATE):
-                nodes[0].token = self.previous
+                nodes[0].token = self.current
                 self._on_production("visibility", "'private'")
                 return True
         return False
