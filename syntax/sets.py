@@ -60,7 +60,7 @@ FIRST_rept_prog1 = set([G.ID, EPSILON])
 
 FOLLOW_statement = set([K.WRITE, K.RETURN, K.ELSE, G.ID, S.SEMI_COLON, K.IF, K.END, K.READ, K.WHILE])
 FOLLOW_rept_opt_class_decl22 = set([S.OPEN_CBR])
-FOLLOW_rept_idnest1 = set([S.DOT])
+FOLLOW_rept_idnest1 = set([S.DOT, O.LTE, O.GT, O.NEQ, O.LT, O.OR, S.SEMI_COLON, S.CLOSE_SBR, S.ASSIGN, S.CLOSE_PAR, O.MULT, O.AND, O.PLUS, S.COMMA, O.MINUS, O.DIV, O.EQ, O.GTE])
 FOLLOW_rept_function_call0 = set([G.ID])
 FOLLOW_add_op = set([L.FLOAT_LITERAL, S.OPEN_PAR, G.ID, O.PLUS, O.MINUS, L.INTEGER_LITERAL, O.NOT])
 FOLLOW_rept_opt_func_body01 = set([K.DO])

@@ -36,5 +36,8 @@ class ParserOutput:
         )
         print("PANIC: Resuming at {next_token}".format(next_token=next_token))
 
+    def invalid_token(self, token):
+        print(token)
+
     def ast(self, root: ASTNode):
         pass

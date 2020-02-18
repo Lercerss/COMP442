@@ -6,10 +6,10 @@ from lexdriver import run
 
 def main():
     to_run = []
-    for _, _, filenames in os.walk("test/fixtures/"):
+    for _, _, filenames in os.walk("test/lex/src/"):
         for filename in filenames:
             if filename.endswith(".src"):
-                to_run.append("test/fixtures/" + filename)
+                to_run.append("test/lex/src/" + filename)
     for f in to_run:
         with open(f) as f_:
             print("Lexical analysis for {}".format(f))

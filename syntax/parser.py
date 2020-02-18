@@ -1,4 +1,5 @@
 from collections import namedtuple
+from functools import wraps
 from typing import Generator, List, Set, Tuple
 
 from lex import Scanner, Token, TokenType
@@ -9,11 +10,14 @@ ParserResult = namedtuple("ParserResult", ["success", "ast"])
 
 
 def skip_errors(func):
+    @wraps(func)
     def wrapped(self, *args):
-        print("Entering " + func.__name__)
         if self._skip_errors(func.__name__):
             return False
-        return func(self, *args)
+        if func(self, *args):
+            return True
+        print("Failed to parse rule: " + func.__name__)
+        return False
 
     return wrapped
 
@@ -26,6 +30,7 @@ class Parser:
         self.token_iter: Generator[Token, None, None] = None
         self.prodcution_handler = prodcution_handler
         self.error_handler = error_handler
+        self.lex_errors = []
 
     def _on_production(self, lhs: str, *rhs: List[str]):
         if self.prodcution_handler:
@@ -39,11 +44,17 @@ class Parser:
         if self.error_handler:
             self.error_handler.resume(skipped, self.lookahead)
 
+    def _on_error_token(self, token):
+        if self.error_handler:
+            self.error_handler.invalid_token(token)
+
     def _next(self):
         self.current = self.lookahead
         self.lookahead = next(self.token_iter)
         while self._la_in(IGNORED_TOKENS):
-            self.current = self.lookahead
+            if isinstance(self.lookahead.token_type, E):
+                self._on_error_token(self.lookahead)
+                self.lex_errors.append(self.lookahead)
             self.lookahead = next(self.token_iter)
         return self.current
 
@@ -57,7 +68,8 @@ class Parser:
         return not self._la_in(good_set)
 
     def _match(self, token_type: TokenType):
-        if self._next().token_type == token_type:
+        if self.lookahead.token_type == token_type:
+            self._next()
             return True
 
         # TODO Significant error handling here?
@@ -85,12 +97,12 @@ class Parser:
 
         return self._panic(first_set, first_and_follow_set)
 
-    def start(self) -> Tuple[bool, ASTNode]:
+    def start(self) -> ParserResult:
         self.token_iter = iter(self.scanner)
         self._next()
         root = ASTNode(GroupNodeType.PROG, self.lookahead)
         try:
-            if self._prog([root]) and self._match(G.EOF):
+            if self._prog([root]) and self._la_eq(G.EOF) and len(self.lex_errors) == 0:
                 return ParserResult(True, root)
         except StopIteration:
             pass
@@ -254,7 +266,7 @@ class Parser:
                 and self._rept_f_params3(nodes)
             ):
                 self._on_production(
-                    "fParams", "type", "'id'", "rept-fParams2", "rept-fParams2"
+                    "fParams", "type", "'id'", "rept-fParams2", "rept-fParams3"
                 )
                 return True
         elif self._la_in(FOLLOW_f_params):
@@ -309,7 +321,7 @@ class Parser:
                             "'id'",
                             "'('",
                             "fParams",
-                            "'('",
+                            "')'",
                             "':'",
                             "'void'",
                             "';'",
@@ -323,7 +335,7 @@ class Parser:
                             "'id'",
                             "'('",
                             "fParams",
-                            "'('",
+                            "')'",
                             "':'",
                             "type",
                             "';'",
@@ -395,6 +407,7 @@ class Parser:
         if self._skip_errors("_variable"):
             return False
 
+        # TODO AST
         if self._la_eq(G.ID) and self._match(G.ID):
             if self._la_eq(S.OPEN_PAR):
                 if (
@@ -420,6 +433,7 @@ class Parser:
                             "aParams",
                             "')'",
                         )
+                        nodes[-1].node_type = GroupNodeType.F_CALL
                         return True
             elif (
                 self._la_in(FIRST_rept_idnest1)
@@ -430,15 +444,16 @@ class Parser:
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
                             self._on_production("idnest", "'id'", "rept-idnest1", "'.'")
-                            return True
+                            if self._nested_var_or_call(
+                                nodes, end_variable, end_function_call
+                            ):
+                                return True
                     elif end_variable and self._la_in(FOLLOW_variable):
                         self._on_production(
                             "variable", "rept-variable0", "'id'", "rept-variable2"
                         )
-                        if self._nested_var_or_call(
-                            nodes, end_variable, end_function_call
-                        ):
-                            return True
+                        nodes[-1].node_type = GroupNodeType.DATA_MEMBER
+                        return True
         return False
 
     @skip_errors
@@ -889,7 +904,7 @@ class Parser:
                 return True
         elif self._la_eq(K.WRITE):
             if (
-                self._match(K.READ)
+                self._match(K.WRITE)
                 and self._match(S.OPEN_PAR)
                 and self._expr(nodes)
                 and self._match(S.CLOSE_PAR)

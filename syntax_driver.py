@@ -7,10 +7,12 @@ from syntax.output import ParserOutput
 def run(f):
     output = ParserOutput(f.name)
     parser = Parser(f, prodcution_handler=output, error_handler=output)
-    success, ast = parser.start()
-    if success:
+    result = parser.start()
+    if result.success:
         print(f.name + ": No parsing errors found")
-    output.ast(ast)
+    else:
+        print(f.name + ": Failed to parse")
+    output.ast(result.ast)
 
 
 def main():
