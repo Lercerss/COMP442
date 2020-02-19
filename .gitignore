@@ -3,4 +3,4 @@ venv
 **/.vscode
 A*_contents
 
-**/*.outlex*
+**/*.out*
