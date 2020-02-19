@@ -28,6 +28,7 @@ class ListNodeType(NodeType):
 
 class GroupNodeType(NodeType):
     PROG = auto()
+    MAIN = auto()
     CLASS_DECL = auto()
     FUNC_DECL = auto()
     FUNC_DEF = auto()

@@ -544,7 +544,7 @@ class Parser:
     def _prog(self, root: ASTNode):  # LT_AUTO_FUNCTION
         classes = root.make_child(ListNodeType.CLASS_LIST)
         funcs = root.make_child(ListNodeType.FUNC_LIST)
-        stat_block = root.make_child(ListNodeType.STAT_BLOCK)
+        main = root.make_child(GroupNodeType.MAIN)
         if (
             self._la_in(FIRST_rept_prog0)
             or self._la_in(FIRST_rept_prog1)
@@ -554,7 +554,7 @@ class Parser:
                 self._rept_prog0(classes)
                 and self._rept_prog1(funcs)
                 and self._match(K.MAIN)
-                and self._func_body(stat_block)
+                and self._func_body(main)
             ):
                 self._on_production(
                     "prog", "rept-prog0", "rept-prog1", "'main'", "funcBody"
