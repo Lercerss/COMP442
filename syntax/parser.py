@@ -9,9 +9,6 @@ from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 ParserResult = namedtuple("ParserResult", ["success", "ast"])
 
 
-# TODO Remove temp comments
-
-
 def skip_errors(func):
     @wraps(func)
     def wrapped(self, *args):
@@ -106,7 +103,7 @@ class Parser:
         return ParserResult(False, root)
 
     @skip_errors
-    def _add_op(self, add_op: ASTNode):  # LT_AUTO_FUNCTION
+    def _add_op(self, add_op: ASTNode):
         if self._la_eq(O.PLUS):
             if self._match(O.PLUS):
                 self._on_production("addOp", "'+'")
@@ -125,7 +122,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _a_params(self, args: ASTNode):  # LT_AUTO_FUNCTION
+    def _a_params(self, args: ASTNode):
         if self._la_in(FIRST_expr):
             if self._expr(args) and self._rept_a_params1(args):
                 self._on_production("aParams", "expr", "rept-aParams1")
@@ -136,7 +133,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _a_params_tail(self, args: ASTNode):  # LT_AUTO_FUNCTION
+    def _a_params_tail(self, args: ASTNode):
         if self._la_eq(S.COMMA):
             if self._match(S.COMMA) and self._expr(args):
                 self._on_production("aParamsTail", "','", "expr")
@@ -144,7 +141,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _arith_expr(self, add_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _arith_expr(self, add_expr: ASTNode):
         if self._la_in(FIRST_term):
             if self._term(add_expr) and self._rightrec_arith_expr(add_expr):
                 if not add_expr.token:
@@ -154,7 +151,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _array_size(self, dims: ASTNode):  # LT_AUTO_FUNCTION
+    def _array_size(self, dims: ASTNode):
         if self._la_eq(S.OPEN_SBR) and self._match(S.OPEN_SBR):
             if self._skip_errors(FIRST_nested_array_size, FF_nested_array_size):
                 return True
@@ -172,7 +169,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _class_decl(self, class_decl: ASTNode):  # LT_AUTO_FUNCTION
+    def _class_decl(self, class_decl: ASTNode):
         if self._la_eq(K.CLASS):
             if self._match(K.CLASS) and self._match(G.ID):
                 class_decl.make_child(LeafNodeType.ID, self.current)
@@ -200,7 +197,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _expr(self, container: ASTNode):  # LT_AUTO_FUNCTION
+    def _expr(self, container: ASTNode):
         left = ASTNode(GroupNodeType.ADD_EXPR)
         if self._la_in(FIRST_arith_expr) and self._arith_expr(left):
             if self._la_in(FIRST_rel_op):
@@ -219,7 +216,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _factor(self, container: ASTNode):  # LT_AUTO_FUNCTION
+    def _factor(self, container: ASTNode):
         if self._la_eq(G.ID):
             var = container.make_child(ListNodeType.VAR)
             if self._nested_var_or_call(var, end_variable=True, end_function_call=True):
@@ -262,7 +259,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _f_params(self, params: ASTNode):  # LT_AUTO_FUNCTION
+    def _f_params(self, params: ASTNode):
         if self._la_in(FIRST_type):
             param = params.make_child(GroupNodeType.FUNC_PARAM)
             type_ = param.make_child(LeafNodeType.TYPE)
@@ -280,7 +277,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _f_params_tail(self, params: ASTNode):  # LT_AUTO_FUNCTION
+    def _f_params_tail(self, params: ASTNode):
         if self._la_eq(S.COMMA):
             param = params.make_child(GroupNodeType.FUNC_PARAM)
             type_ = param.make_child(LeafNodeType.TYPE)
@@ -295,7 +292,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _func_body(self, func_def: ASTNode):  # LT_AUTO_FUNCTION
+    def _func_body(self, func_def: ASTNode):
         if self._la_in(FIRST_opt_func_body0) or self._la_eq(K.DO):
             locals_ = func_def.make_child(ListNodeType.LOCAL_LIST)
             statements = func_def.make_child(ListNodeType.STAT_BLOCK)
@@ -312,7 +309,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _func_decl(self, func_decl):  # LT_AUTO_FUNCTION
+    def _func_decl(self, func_decl):
         if self._la_eq(G.ID) and self._match(G.ID):
             func_decl.make_child(LeafNodeType.ID, self.current)
             params = func_decl.make_child(ListNodeType.PARAM_LIST)
@@ -354,7 +351,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _func_def(self, func_def: ASTNode):  # LT_AUTO_FUNCTION
+    def _func_def(self, func_def: ASTNode):
         if self._la_in(FIRST_func_head):
             if (
                 self._func_head(func_def)
@@ -366,7 +363,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _func_head(self, func_def: ASTNode):  # LT_AUTO_FUNCTION
+    def _func_head(self, func_def: ASTNode):
         if self._la_eq(G.ID) and self._match(G.ID):
             scope_spec = func_def.make_child(LeafNodeType.SCOPE_SPEC, self.current)
             if self._la_eq(S.DCOLON):
@@ -417,7 +414,13 @@ class Parser:
 
     def _nested_var_or_call(
         self, var: ASTNode, end_variable=False, end_function_call=False
-    ):  # LT_AUTO_FUNCTION LT_NOT_FROM_GRAM
+    ):
+        """Handles three rules:
+        - variable      -> {{ idnest }} 'id' {{ indice }}
+        - functionCall  -> {{ idnest }} 'id' '(' aParams ')'
+        - idnest        -> 'id' {{ indice }} '.'
+                         | 'id' '(' aParams ')' '.'
+        """
         if self._skip_errors(FIRST_variable, FF_variable):
             return True
 
@@ -474,7 +477,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _indice(self, add_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _indice(self, add_expr: ASTNode):
         if self._la_eq(S.OPEN_SBR) and self._match(S.OPEN_SBR):
             if self._arith_expr(add_expr) and self._match(S.CLOSE_SBR):
                 self._on_production("indice", "'['", "arithExpr", "']'")
@@ -482,7 +485,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _member_decl(self, member: ASTNode):  # LT_AUTO_FUNCTION
+    def _member_decl(self, member: ASTNode):
         if self._la_in(FIRST_func_decl):
             func_decl = member.make_child(GroupNodeType.FUNC_DECL)
             if self._func_decl(func_decl):
@@ -496,7 +499,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _mult_op(self, mult_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _mult_op(self, mult_expr: ASTNode):
         if self._la_eq(O.MULT):
             if self._match(O.MULT):
                 self._on_production("multOp", "'*'")
@@ -515,7 +518,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _opt_class_decl2(self, inherits):  # LT_AUTO_FUNCTION
+    def _opt_class_decl2(self, inherits):
         if self._la_eq(K.INHERITS):
             if self._match(K.INHERITS) and self._match(G.ID):
                 inherits.make_child(LeafNodeType.ID, self.current)
@@ -530,7 +533,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _opt_func_body0(self, locals_: ASTNode):  # LT_AUTO_FUNCTION
+    def _opt_func_body0(self, locals_: ASTNode):
         if self._la_eq(K.LOCAL):
             if self._match(K.LOCAL) and self._rept_opt_func_body01(locals_):
                 self._on_production("opt-funcBody0", "'local'", "rept-opt-funcBody01")
@@ -541,7 +544,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _prog(self, root: ASTNode):  # LT_AUTO_FUNCTION
+    def _prog(self, root: ASTNode):
         classes = root.make_child(ListNodeType.CLASS_LIST)
         funcs = root.make_child(ListNodeType.FUNC_LIST)
         main = root.make_child(GroupNodeType.MAIN)
@@ -563,7 +566,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rel_expr(self, rel_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _rel_expr(self, rel_expr: ASTNode):
         left = rel_expr.make_child(GroupNodeType.ADD_EXPR)
         right = rel_expr.make_child(GroupNodeType.ADD_EXPR)
         if self._la_in(FIRST_arith_expr):
@@ -577,7 +580,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rel_op(self, rel_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _rel_op(self, rel_expr: ASTNode):
         if self._la_eq(O.EQ):
             if self._match(O.EQ):
                 self._on_production("relOp", "'eq'")
@@ -611,7 +614,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_a_params1(self, args: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_a_params1(self, args: ASTNode):
         if self._la_in(FIRST_a_params_tail):
             if self._a_params_tail(args) and self._rept_a_params1(args):
                 self._on_production("rept-aParams1", "aParamsTails", "rept-aParams1")
@@ -622,7 +625,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_class_decl4(self, members: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_class_decl4(self, members: ASTNode):
         if self._la_in(FIRST_visibility):
             member = members.make_child(GroupNodeType.MEMBER_DECL)
             visibility = member.make_child(LeafNodeType.VISIBILITY)
@@ -641,7 +644,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_f_params2(self, dims: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_f_params2(self, dims: ASTNode):
         if self._la_in(FIRST_array_size):
             if self._array_size(dims) and self._rept_f_params2(dims):
                 self._on_production("rept-fParams2", "arraySize", "rept-fParams2")
@@ -652,7 +655,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_f_params3(self, params):  # LT_AUTO_FUNCTION
+    def _rept_f_params3(self, params):
         if self._la_in(FIRST_f_params_tail):
             if self._f_params_tail(params) and self._rept_f_params3(params):
                 self._on_production("rept-fParams3", "fParamsTail", "rept-fParams3")
@@ -663,7 +666,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_f_params_tail3(self, dims):  # LT_AUTO_FUNCTION
+    def _rept_f_params_tail3(self, dims):
         if self._la_in(FIRST_array_size):
             if self._array_size(dims) and self._rept_f_params_tail3(dims):
                 self._on_production(
@@ -676,7 +679,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_func_body2(self, statements: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_func_body2(self, statements: ASTNode):
         if self._la_in(FIRST_statement):
             if self._statement(statements) and self._rept_func_body2(statements):
                 self._on_production("rept-funcBody2", "statement", "rept-funcBody2")
@@ -687,7 +690,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_idnest1(self, dims: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_idnest1(self, dims: ASTNode):
         if self._la_in(FIRST_indice):
             add_expr = dims.make_child(GroupNodeType.ADD_EXPR)
             if self._indice(add_expr) and self._rept_idnest1(dims):
@@ -699,7 +702,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_opt_class_decl22(self, inherits):  # LT_AUTO_FUNCTION
+    def _rept_opt_class_decl22(self, inherits):
         if self._la_eq(S.COMMA):
             if self._match(S.COMMA) and self._match(G.ID):
                 inherits.make_child(LeafNodeType.ID, self.current)
@@ -714,7 +717,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_opt_func_body01(self, locals_: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_opt_func_body01(self, locals_: ASTNode):
         if self._la_in(FIRST_var_decl):
             var_decl = locals_.make_child(GroupNodeType.VAR_DECL)
             if self._var_decl(var_decl) and self._rept_opt_func_body01(locals_):
@@ -728,7 +731,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_prog0(self, classes: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_prog0(self, classes: ASTNode):
         if self._la_in(FIRST_class_decl):
             class_decl = classes.make_child(GroupNodeType.CLASS_DECL)
             if self._class_decl(class_decl) and self._rept_prog0(classes):
@@ -740,7 +743,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_prog1(self, functions: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_prog1(self, functions: ASTNode):
         if self._la_in(FIRST_func_def):
             func_def = functions.make_child(GroupNodeType.FUNC_DEF)
             if self._func_def(func_def) and self._rept_prog1(functions):
@@ -752,7 +755,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_stat_block1(self, stat_block: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_stat_block1(self, stat_block: ASTNode):
         if self._la_in(FIRST_statement):
             if self._statement(stat_block) and self._rept_stat_block1(stat_block):
                 self._on_production("rept-statBlock1", "statement", "rept-statBlock1")
@@ -763,7 +766,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_var_decl2(self, dims: ASTNode):  # LT_AUTO_FUNCTION
+    def _rept_var_decl2(self, dims: ASTNode):
         if self._la_in(FIRST_array_size):
             if self._array_size(dims) and self._rept_var_decl2(dims):
                 self._on_production("rept-varDecl2", "arraySize", "rept-varDecl2")
@@ -774,7 +777,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rightrec_arith_expr(self, add_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _rightrec_arith_expr(self, add_expr: ASTNode):
         if self._la_in(FIRST_add_op):
             right = ASTNode(GroupNodeType.ADD_EXPR)
             if (
@@ -794,7 +797,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rightrec_term(self, mult_expr: ASTNode):  # LT_AUTO_FUNCTION
+    def _rightrec_term(self, mult_expr: ASTNode):
         if self._la_in(FIRST_mult_op):
             right = ASTNode(GroupNodeType.MULT_EXPR)
             if (
@@ -814,7 +817,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _sign(self, sign: ASTNode):  # LT_AUTO_FUNCTION
+    def _sign(self, sign: ASTNode):
         if self._la_eq(O.PLUS):
             if self._match(O.PLUS):
                 self._on_production("sign", "'+'")
@@ -828,7 +831,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _stat_block(self, stat_block: ASTNode):  # LT_AUTO_FUNCTION
+    def _stat_block(self, stat_block: ASTNode):
         if self._la_in(FIRST_statement):
             if self._statement(stat_block):
                 self._on_production("statBlock", "statement")
@@ -847,7 +850,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _statement(self, container: ASTNode):  # LT_AUTO_FUNCTION
+    def _statement(self, container: ASTNode):
         if self._la_in(FIRST_variable):
             var = ASTNode(ListNodeType.VAR)
             if self._nested_var_or_call(var, end_variable=True, end_function_call=True):
@@ -954,7 +957,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _term(self, container: ASTNode):  # LT_AUTO_FUNCTION
+    def _term(self, container: ASTNode):
         if self._la_in(FIRST_factor):
             mult_expr = container.make_child(GroupNodeType.MULT_EXPR)
             if self._factor(mult_expr) and self._rightrec_term(mult_expr):
@@ -965,7 +968,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _type(self, type_: ASTNode):  # LT_AUTO_FUNCTION
+    def _type(self, type_: ASTNode):
         if self._la_eq(K.INTEGER):
             if self._match(K.INTEGER):
                 type_.token = self.current
@@ -984,7 +987,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _var_decl(self, var_decl: ASTNode):  # LT_AUTO_FUNCTION
+    def _var_decl(self, var_decl: ASTNode):
         if self._la_in(FIRST_type):
             type_ = var_decl.make_child(LeafNodeType.TYPE)
             if self._type(type_) and self._match(G.ID):
@@ -998,7 +1001,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _visibility(self, visibility: ASTNode):  # LT_AUTO_FUNCTION
+    def _visibility(self, visibility: ASTNode):
         if self._la_eq(K.PUBLIC):
             if self._match(K.PUBLIC):
                 visibility.token = self.current
