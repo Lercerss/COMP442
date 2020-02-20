@@ -12,7 +12,7 @@ def run(f):
         print(f.name + ": No parsing errors found")
     else:
         print(f.name + ": Failed to parse")
-    output.ast(result.ast)
+    output.ast(result.ast, result.success)
 
 
 def main():

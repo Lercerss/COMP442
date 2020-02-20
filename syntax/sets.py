@@ -6,7 +6,7 @@ IGNORED_TOKENS = {G.BLOCK_CMT, G.INLINE_CMT, E.DANGLING_BLOCK_COMMENT, E.INVALID
 
 FIRST_statement = {K.WRITE, K.RETURN, G.ID, K.IF, K.READ, K.WHILE}
 FIRST_rept_opt_class_decl22 = {S.COMMA, EPSILON}
-FIRST_rept_idnest1 = {S.OPEN_SBR, EPSILON}
+FIRST_rept_indice = {S.OPEN_SBR, EPSILON}
 FIRST_rept_function_call0 = {G.ID, EPSILON}
 FIRST_add_op = {O.OR, O.PLUS, O.MINUS}
 FIRST_rept_opt_func_body01 = {G.ID, EPSILON, K.INTEGER, K.FLOAT}
@@ -60,7 +60,7 @@ FIRST_rept_prog1 = {G.ID, EPSILON}
 
 FOLLOW_statement = {K.WRITE, K.RETURN, K.ELSE, G.ID, S.SEMI_COLON, K.IF, K.END, K.READ, K.WHILE}
 FOLLOW_rept_opt_class_decl22 = {S.OPEN_CBR}
-FOLLOW_rept_idnest1 = {S.DOT, O.LTE, O.GT, O.NEQ, O.LT, O.OR, S.SEMI_COLON, S.CLOSE_SBR, S.ASSIGN, S.CLOSE_PAR, O.MULT, O.AND, O.PLUS, S.COMMA, O.MINUS, O.DIV, O.EQ, O.GTE}
+FOLLOW_rept_indice = {S.DOT, O.LTE, O.GT, O.NEQ, O.LT, O.OR, S.SEMI_COLON, S.CLOSE_SBR, S.ASSIGN, S.CLOSE_PAR, O.MULT, O.AND, O.PLUS, S.COMMA, O.MINUS, O.DIV, O.EQ, O.GTE}
 FOLLOW_rept_function_call0 = {G.ID}
 FOLLOW_add_op = {L.FLOAT_LITERAL, S.OPEN_PAR, G.ID, O.PLUS, O.MINUS, L.INTEGER_LITERAL, O.NOT}
 FOLLOW_rept_opt_func_body01 = {K.DO}
@@ -114,7 +114,7 @@ FOLLOW_rept_prog1 = {K.MAIN}
 
 FF_statement = FOLLOW_statement.union(FIRST_statement)
 FF_rept_opt_class_decl22 = FOLLOW_rept_opt_class_decl22.union(FIRST_rept_opt_class_decl22)
-FF_rept_idnest1 = FOLLOW_rept_idnest1.union(FIRST_rept_idnest1)
+FF_rept_indice = FOLLOW_rept_indice.union(FIRST_rept_indice)
 FF_rept_function_call0 = FOLLOW_rept_function_call0.union(FIRST_rept_function_call0)
 FF_add_op = FOLLOW_add_op.union(FIRST_add_op)
 FF_rept_opt_func_body01 = FOLLOW_rept_opt_func_body01.union(FIRST_rept_opt_func_body01)

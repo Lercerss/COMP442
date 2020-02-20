@@ -8,6 +8,8 @@ from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 
 ParserResult = namedtuple("ParserResult", ["success", "ast"])
 
+SYNC_RULES = {"_statement", "_var_decl", "_func_decl", "_func_def", "_class_decl"}
+
 
 def skip_errors(func):
     @wraps(func)
@@ -16,7 +18,11 @@ def skip_errors(func):
             return True
         if func(self, *args):
             return True
-        print("Failed to parse rule: " + func.__name__)
+
+        if func.__name__ in SYNC_RULES:
+            self.success = False
+            return True
+
         return False
 
     return wrapped
@@ -31,6 +37,7 @@ class Parser:
         self.prodcution_handler = prodcution_handler
         self.error_handler = error_handler
         self.lex_errors = []
+        self.success = True
 
     def _on_production(self, lhs: str, *rhs: List[str]):
         if self.prodcution_handler:
@@ -97,7 +104,7 @@ class Parser:
         root = ASTNode(GroupNodeType.PROG, self.lookahead)
         try:
             if self._prog(root) and self._la_eq(G.EOF) and len(self.lex_errors) == 0:
-                return ParserResult(True, root)
+                return ParserResult(self.success, root)
         except StopIteration:
             pass
         return ParserResult(False, root)
@@ -208,7 +215,7 @@ class Parser:
                     self._on_production("relExpr", "arithExpr", "relOp", "arithExpr")
                     self._on_production("expr", "relExpr")
                     return True
-            elif self._la_in(FOLLOW_arith_expr):
+            elif self._la_in(FOLLOW_expr):
                 container.adopt(left)
                 self._on_production("expr", "arithExpr")
                 return True
@@ -348,6 +355,8 @@ class Parser:
                             "';'",
                         )
                         return True
+                else:
+                    self._on_panic(FIRST_type.union({K.VOID}))
         return False
 
     @skip_errors
@@ -410,10 +419,12 @@ class Parser:
                             "type",
                         )
                         return True
+                else:
+                    self._on_panic(FIRST_type.union({K.VOID}))
         return False
 
     def _nested_var_or_call(
-        self, var: ASTNode, end_variable=False, end_function_call=False
+        self, var: ASTNode, end_variable=False, end_function_call=False, first=True
     ):
         """Handles three rules:
         - variable      -> {{ idnest }} 'id' {{ indice }}
@@ -436,44 +447,68 @@ class Parser:
                 ):
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
+                            if first:
+                                self._on_production("rept-idnest", EPSILON)
                             self._on_production(
                                 "idnest", "'id'", "'('", "aParams", "')'", "'.'"
                             )
+                            self._on_production("rept-idnest", "idnest", "rept-idnest")
+
                             if self._nested_var_or_call(
-                                var, end_variable, end_function_call
+                                var, end_variable, end_function_call, first=False,
                             ):
                                 return True
                     elif end_function_call and self._la_in(FOLLOW_function_call):
+                        self._on_production("rept-idnest", EPSILON)
                         self._on_production(
                             "functionCall",
-                            "rept-functionCall0",
+                            "rept-idnest",
                             "'id'",
                             "'('",
                             "aParams",
                             "')'",
                         )
                         return True
+                    else:
+                        self._on_panic(
+                            (
+                                FOLLOW_function_call if end_function_call else set()
+                            ).union({S.DOT})
+                        )
             elif (
-                self._la_in(FIRST_rept_idnest1)
+                self._la_in(FIRST_rept_indice)
                 or self._la_eq(S.DOT)
                 or (self._la_in(FOLLOW_variable) and end_variable)
             ):
                 data_member = var.make_child(GroupNodeType.DATA_MEMBER)
                 data_member.make_child(LeafNodeType.ID, self.current)
                 dims = data_member.make_child(ListNodeType.DIM_LIST)
-                if self._rept_idnest1(dims):
+                if self._rept_indice(dims):
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
-                            self._on_production("idnest", "'id'", "rept-idnest1", "'.'")
+                            if first:
+                                self._on_production("rept-idnest", EPSILON)
+                            self._on_production("idnest", "'id'", "rept-indice", "'.'")
+                            self._on_production("rept-idnest", "idnest", "rept-idnest")
                             if self._nested_var_or_call(
-                                var, end_variable, end_function_call
+                                var, end_variable, end_function_call, first=False,
                             ):
                                 return True
                     elif end_variable and self._la_in(FOLLOW_variable):
                         self._on_production(
-                            "variable", "rept-variable0", "'id'", "rept-variable2"
+                            "variable", "rept-idnest", "'id'", "rept-indice"
                         )
                         return True
+                    else:
+                        self._on_panic(
+                            (FOLLOW_variable if end_variable else set()).union({S.DOT})
+                        )
+            else:
+                self._on_panic(
+                    (FOLLOW_variable if end_variable else set()).union(
+                        {S.DOT, S.OPEN_PAR}
+                    )
+                )
         return False
 
     @skip_errors
@@ -617,7 +652,7 @@ class Parser:
     def _rept_a_params1(self, args: ASTNode):
         if self._la_in(FIRST_a_params_tail):
             if self._a_params_tail(args) and self._rept_a_params1(args):
-                self._on_production("rept-aParams1", "aParamsTails", "rept-aParams1")
+                self._on_production("rept-aParams1", "aParamsTail", "rept-aParams1")
                 return True
         elif self._la_in(FOLLOW_rept_a_params1):
             self._on_production("rept-aParams1", EPSILON)
@@ -690,14 +725,14 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_idnest1(self, dims: ASTNode):
+    def _rept_indice(self, dims: ASTNode):
         if self._la_in(FIRST_indice):
             add_expr = dims.make_child(GroupNodeType.ADD_EXPR)
-            if self._indice(add_expr) and self._rept_idnest1(dims):
-                self._on_production("rept-idnest1", "indice", "rept-idnest1")
+            if self._indice(add_expr) and self._rept_indice(dims):
+                self._on_production("rept-indice", "indice", "rept-indice")
                 return True
-        elif self._la_in(FOLLOW_rept_idnest1):
-            self._on_production("rept-idnest1", EPSILON)
+        elif self._la_in(FOLLOW_rept_indice):
+            self._on_production("rept-indice", EPSILON)
             return True
         return False
 
@@ -869,6 +904,8 @@ class Parser:
                     if self._match(S.SEMI_COLON):
                         self._on_production("statement", "functionCall", "';'")
                         return True
+                else:
+                    self._on_panic({S.ASSIGN} if last_node == GroupNodeType.DATA_MEMBER else {S.SEMI_COLON})
         elif self._la_eq(K.IF):
             if_ = container.make_child(GroupNodeType.IF_STAT)
             rel_expr = if_.make_child(GroupNodeType.REL_EXPR)
