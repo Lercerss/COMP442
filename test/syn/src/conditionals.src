@@ -1,0 +1,21 @@
+main
+  local
+    integer x;
+	float num;
+  do
+    read(x);
+	num = 1;
+	while(x <> 442)
+	  do
+	    read(x);
+	    num = num + 1;
+	  end
+	;
+	
+	if(num >= 10)
+	then
+	  write(num);
+	else
+	  write(x);
+	;
+  end

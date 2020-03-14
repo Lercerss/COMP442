@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import os
-from syntaxdriver import run
+from syndriver import run
 
 
 def main():
     to_run = []
-    for _, _, filenames in os.walk("test/fixtures/"):
+    for _, _, filenames in os.walk("test/syn/src/"):
         for filename in filenames:
             if filename.endswith(".src"):
-                to_run.append("test/fixtures/" + filename)
+                to_run.append("test/syn/src/" + filename)
     for f in to_run:
         with open(f) as f_:
             print("Parsing {}".format(f))

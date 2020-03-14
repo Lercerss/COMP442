@@ -6,13 +6,14 @@ from typing import List, Set
 from lex import Token, TokenType
 from .ast import ASTNode
 from .sets import EPSILON
+from .parser import ErrorHandler, ProductionHandler
 
 EXTENSION = re.compile(r"\.src$")
 
 class Leaf:
     pass
 
-class ParserOutput:
+class ParserOutput(ErrorHandler, ProductionHandler):
     def __init__(self, source_file: str):
         self.derivation_file = open(EXTENSION.sub(".outderivation", source_file), "w")
         self.derivation_variant_file = open(

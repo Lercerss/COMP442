@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from syntax import Parser
-from syntax.output import ParserOutput
+from syn import Parser
+from syn.output import ParserOutput
 
 
 def run(f):

@@ -1,9 +1,10 @@
+from abc import abstractmethod, ABC
 from collections import namedtuple
 from functools import wraps
 from typing import Generator, List, Set, Tuple
 
 from lex import Scanner, Token, TokenType
-from .sets import *
+from .sets import *  # pylint: disable=unused-wildcard-import
 from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 
 ParserResult = namedtuple("ParserResult", ["success", "ast"])
@@ -28,14 +29,34 @@ def skip_errors(func):
     return wrapped
 
 
+class ProductionHandler(ABC):
+    @abstractmethod
+    def add(self, lhs: str, rhs: List[str]):
+        raise NotImplementedError()
+
+
+class ErrorHandler(ABC):
+    @abstractmethod
+    def panic(self, expected: Set[TokenType], found: Token):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def resume(self, skipped: List[Token], next_token: Token):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def invalid_token(self, token: Token):
+        raise NotImplementedError()
+
+
 class Parser:
     def __init__(self, source, prodcution_handler=None, error_handler=None):
         self.scanner: Scanner = Scanner(source)
         self.lookahead: Token = None
         self.current: Token = None
         self.token_iter: Generator[Token, None, None] = None
-        self.prodcution_handler = prodcution_handler
-        self.error_handler = error_handler
+        self.prodcution_handler: ProductionHandler = prodcution_handler
+        self.error_handler: ErrorHandler = error_handler
         self.lex_errors = []
         self.success = True
 
@@ -75,11 +96,12 @@ class Parser:
         return not self._la_in(good_set)
 
     def _match(self, token_type: TokenType):
-        if self._next().token_type == token_type:
-            return True
+        match = self._la_eq(token_type)
+        if not match:
+            self._on_panic([token_type])
 
-        self._on_panic([token_type])
-        return False
+        self._next()
+        return match
 
     def _la_in(self, set_: Set[TokenType]) -> bool:
         return self.lookahead.token_type in set_
@@ -905,7 +927,11 @@ class Parser:
                         self._on_production("statement", "functionCall", "';'")
                         return True
                 else:
-                    self._on_panic({S.ASSIGN} if last_node == GroupNodeType.DATA_MEMBER else {S.SEMI_COLON})
+                    self._on_panic(
+                        {S.ASSIGN}
+                        if last_node == GroupNodeType.DATA_MEMBER
+                        else {S.SEMI_COLON}
+                    )
         elif self._la_eq(K.IF):
             if_ = container.make_child(GroupNodeType.IF_STAT)
             rel_expr = if_.make_child(GroupNodeType.REL_EXPR)

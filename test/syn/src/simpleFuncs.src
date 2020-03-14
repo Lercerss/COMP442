@@ -1,0 +1,24 @@
+//Some free functions
+add(integer x, integer y):integer
+  local
+    integer result;
+  do
+    result = x + y;
+	return result;
+  end
+  
+add(integer[2] arr):integer
+  local
+    integer result;
+  do
+    result = arr[0] + arr[1]
+	return result;
+  end
+
+//It's main!
+main
+  local
+    integer x;
+  do
+    x = add(1,1);
+  end
