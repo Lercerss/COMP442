@@ -80,7 +80,7 @@ class Errors(TokenType):
     DANGLING_BLOCK_COMMENT = auto()
 
     def __str__(self):
-        return "Lexical error: " + str(self.name).replace("_", " ").lower().capitalize()
+        return "Lexical Error: " + str(self.name).replace("_", " ").lower().capitalize()
 
 
 Location = namedtuple("Location", ["line", "column"])

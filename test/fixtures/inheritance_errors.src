@@ -1,0 +1,15 @@
+class Foo inherits Baz {};
+class Bar inherits Foo {};
+class Baz inherits Bar {};
+
+class FooBar inherits Foo, Bar, Baz {};
+
+class A{};
+class B inherits A {};
+class C inherits A {};
+class D inherits B, C {};
+
+main
+    do
+        print(1);
+    end

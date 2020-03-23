@@ -9,7 +9,7 @@ from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 
 ParserResult = namedtuple("ParserResult", ["success", "ast"])
 
-SYNC_RULES = {"_statement", "_var_decl", "_func_decl", "_func_def", "_class_decl"}
+SYNC_RULES = {"_statement", "_var_decl", "_member_decl", "_func_def", "_class_decl"}
 
 
 def skip_errors(func):
@@ -191,8 +191,8 @@ class Parser:
                     self._on_production("arraySize", "'['", "intNum", "']'")
                     return True
             elif self._la_eq(S.CLOSE_SBR):
-                dims.make_child(LeafNodeType.EPSILON)
                 if self._match(S.CLOSE_SBR):
+                    dims.make_child(LeafNodeType.EPSILON)
                     self._on_production("arraySize", "'['", "']'")
                     return True
         return False
@@ -312,7 +312,8 @@ class Parser:
             type_ = param.make_child(LeafNodeType.TYPE)
             if self._match(S.COMMA) and self._type(type_) and self._match(G.ID):
                 param.make_child(LeafNodeType.ID, self.current)
-                if self._rept_f_params_tail3(param):
+                dims = param.make_child(ListNodeType.DIM_LIST)
+                if self._rept_f_params_tail3(dims):
                     self._on_production(
                         "fParamsTail", "','", "type", "'id'", "rept-fParamsTail3"
                     )
@@ -504,8 +505,8 @@ class Parser:
             ):
                 data_member = var.make_child(GroupNodeType.DATA_MEMBER)
                 data_member.make_child(LeafNodeType.ID, self.current)
-                dims = data_member.make_child(ListNodeType.DIM_LIST)
-                if self._rept_indice(dims):
+                indexes = data_member.make_child(ListNodeType.INDEX_LIST)
+                if self._rept_indice(indexes):
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
                             if first:
@@ -543,16 +544,66 @@ class Parser:
 
     @skip_errors
     def _member_decl(self, member: ASTNode):
-        if self._la_in(FIRST_func_decl):
-            func_decl = member.make_child(GroupNodeType.FUNC_DECL)
-            if self._func_decl(func_decl):
-                self._on_production("memberDecl", "funcDecl")
-                return True
-        elif self._la_in(FIRST_var_decl):
+        if self._la_in({K.FLOAT, K.INTEGER}):
             var_decl = member.make_child(GroupNodeType.VAR_DECL)
             if self._var_decl(var_decl):
                 self._on_production("memberDecl", "varDecl")
                 return True
+        elif self._la_eq(G.ID) and self._match(G.ID):
+            decl = member.make_child(None)
+            decl.make_child(LeafNodeType.ID, self.current)
+            if self._la_eq(S.OPEN_PAR) and self._match(S.OPEN_PAR):
+                decl.node_type = GroupNodeType.FUNC_DECL
+                params = decl.make_child(ListNodeType.PARAM_LIST)
+                if (
+                    self._f_params(params)
+                    and self._match(S.CLOSE_PAR)
+                    and self._match(S.COLON)
+                ):
+                    if self._la_eq(K.VOID):
+                        decl.make_child(LeafNodeType.TYPE, self.lookahead)
+                        if self._match(K.VOID) and self._match(S.SEMI_COLON):
+                            self._on_production(
+                                "funcDecl",
+                                "'id'",
+                                "'('",
+                                "fParams",
+                                "')'",
+                                "':'",
+                                "'void'",
+                                "';'",
+                            )
+                            self._on_production("memberDecl", "funcDecl")
+                            return True
+                    elif self._la_in(FIRST_type):
+                        type_ = decl.make_child(LeafNodeType.TYPE)
+                        if self._type(type_) and self._match(S.SEMI_COLON):
+                            self._on_production(
+                                "funcDecl",
+                                "'id'",
+                                "'('",
+                                "fParams",
+                                "')'",
+                                "':'",
+                                "type",
+                                "';'",
+                            )
+                            self._on_production("memberDecl", "funcDecl")
+                            return True
+                    else:
+                        self._on_panic(FIRST_type.union({K.VOID}))
+            elif self._la_eq(G.ID) and self._match(G.ID):
+                self._on_production("type", "'id'")
+                decl.node_type = GroupNodeType.VAR_DECL
+                decl.children[0].node_type = LeafNodeType.TYPE
+                decl.make_child(LeafNodeType.ID, self.current)
+                dims = decl.make_child(ListNodeType.DIM_LIST)
+                if self._rept_var_decl2(dims) and self._match(S.SEMI_COLON):
+                    self._on_production(
+                        "varDecl", "type", "'id'", "rept-varDecl2", "';'"
+                    )
+                    self._on_production("memberDecl", "varDecl")
+                    return True
         return False
 
     @skip_errors
@@ -712,7 +763,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_f_params3(self, params):
+    def _rept_f_params3(self, params: ASTNode):
         if self._la_in(FIRST_f_params_tail):
             if self._f_params_tail(params) and self._rept_f_params3(params):
                 self._on_production("rept-fParams3", "fParamsTail", "rept-fParams3")
@@ -723,7 +774,7 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_f_params_tail3(self, dims):
+    def _rept_f_params_tail3(self, dims: ASTNode):
         if self._la_in(FIRST_array_size):
             if self._array_size(dims) and self._rept_f_params_tail3(dims):
                 self._on_production(
@@ -747,10 +798,10 @@ class Parser:
         return False
 
     @skip_errors
-    def _rept_indice(self, dims: ASTNode):
+    def _rept_indice(self, indexes: ASTNode):
         if self._la_in(FIRST_indice):
-            add_expr = dims.make_child(GroupNodeType.ADD_EXPR)
-            if self._indice(add_expr) and self._rept_indice(dims):
+            add_expr = indexes.make_child(GroupNodeType.ADD_EXPR)
+            if self._indice(add_expr) and self._rept_indice(indexes):
                 self._on_production("rept-indice", "indice", "rept-indice")
                 return True
         elif self._la_in(FOLLOW_rept_indice):

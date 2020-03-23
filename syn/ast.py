@@ -1,8 +1,10 @@
 from collections import namedtuple
 from enum import Enum, unique, auto
+from typing import List
+
 from lex import Token
 
-Siblings = namedtuple("Siblings", ["leftmost", "right"])
+import sem
 
 
 @unique
@@ -55,9 +57,6 @@ class LeafNodeType(NodeType):
     ID = auto()
     TYPE = auto()
     LITERAL = auto()
-    REL_OP = auto()
-    ADD_OP = auto()
-    MULT_OP = auto()
     VISIBILITY = auto()
     SCOPE_SPEC = auto()
 
@@ -66,8 +65,9 @@ class ASTNode:
     def __init__(self, node_type: NodeType, token: Token = None):
         self.node_type = node_type
         self.token = token
-        self.children = []
-        self.parent = None
+        self.children: List["ASTNode"] = []
+        self.parent: "ASTNode" = None
+        self.record: sem.table.Record = None
 
     def make_child(self, node_type: NodeType, token: Token = None) -> "ASTNode":
         """Create a new node and adopt it"""
@@ -112,3 +112,9 @@ class ASTNode:
             str(self.node_type)
             + (' token="{}"'.format(str(self.token)) if self.token else "")
         )
+
+    def accept(self, visitor):
+        """Allow the visitor to recursively walk the AST"""
+        for c in self.children:
+            c.accept(visitor)
+        visitor.visit(self)
