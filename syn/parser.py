@@ -661,16 +661,13 @@ class Parser:
             or self._la_in(FIRST_rept_prog1)
             or self._la_eq(K.MAIN)
         ):
-            if (
-                self._rept_prog0(classes)
-                and self._rept_prog1(funcs)
-                and self._match(K.MAIN)
-                and self._func_body(main)
-            ):
-                self._on_production(
-                    "prog", "rept-prog0", "rept-prog1", "'main'", "funcBody"
-                )
-                return True
+            if self._rept_prog0(classes) and self._rept_prog1(funcs):
+                main.token = self.lookahead
+                if self._match(K.MAIN) and self._func_body(main):
+                    self._on_production(
+                        "prog", "rept-prog0", "rept-prog1", "'main'", "funcBody"
+                    )
+                    return True
         return False
 
     @skip_errors
@@ -984,7 +981,7 @@ class Parser:
                         else {S.SEMI_COLON}
                     )
         elif self._la_eq(K.IF):
-            if_ = container.make_child(GroupNodeType.IF_STAT)
+            if_ = container.make_child(GroupNodeType.IF_STAT, self.lookahead)
             rel_expr = if_.make_child(GroupNodeType.REL_EXPR)
             then = if_.make_child(ListNodeType.STAT_BLOCK)
             else_ = if_.make_child(ListNodeType.STAT_BLOCK)
@@ -1013,7 +1010,7 @@ class Parser:
                 )
                 return True
         elif self._la_eq(K.WHILE):
-            while_ = container.make_child(GroupNodeType.WHILE_STAT)
+            while_ = container.make_child(GroupNodeType.WHILE_STAT, self.lookahead)
             rel_expr = while_.make_child(GroupNodeType.REL_EXPR)
             stat_block = while_.make_child(ListNodeType.STAT_BLOCK)
             if (
@@ -1029,7 +1026,7 @@ class Parser:
                 )
                 return True
         elif self._la_eq(K.READ):
-            read = container.make_child(GroupNodeType.READ_STAT)
+            read = container.make_child(GroupNodeType.READ_STAT, self.lookahead)
             var = read.make_child(ListNodeType.VAR)
             if (
                 self._match(K.READ)
@@ -1043,7 +1040,7 @@ class Parser:
                 )
                 return True
         elif self._la_eq(K.WRITE):
-            write = container.make_child(GroupNodeType.WRITE_STAT)
+            write = container.make_child(GroupNodeType.WRITE_STAT, self.lookahead)
             if (
                 self._match(K.WRITE)
                 and self._match(S.OPEN_PAR)
@@ -1056,7 +1053,7 @@ class Parser:
                 )
                 return True
         elif self._la_eq(K.RETURN):
-            return_ = container.make_child(GroupNodeType.RETURN_STAT)
+            return_ = container.make_child(GroupNodeType.RETURN_STAT, self.lookahead)
             if (
                 self._match(K.RETURN)
                 and self._match(S.OPEN_PAR)

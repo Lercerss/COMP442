@@ -90,7 +90,6 @@ class Token:
     ESCAPING = str.maketrans({"\n": r"\n", "\t": r"\t", "\r": r"\r", "\\": r"\\"})
 
     def __init__(self, token_type: TokenType, lexeme: str, location: Tuple[int, int]):
-        assert len(location) == 2, "location must have line and column number"
         self.token_type = token_type
         self.lexeme = lexeme
         self.location = Location(*location)

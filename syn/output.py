@@ -10,8 +10,10 @@ from .parser import ErrorHandler, ProductionHandler
 
 EXTENSION = re.compile(r"\.src$")
 
+
 class Leaf:
     pass
+
 
 class ParserOutput(ErrorHandler, ProductionHandler):
     def __init__(self, source_file: str):
@@ -48,7 +50,8 @@ class ParserOutput(ErrorHandler, ProductionHandler):
     def panic(self, expected: Set[TokenType], found: Token):
         print(
             "PANIC: Expected one of [{expected}] but found {found}".format(
-                expected=",".join(str(e) for e in expected if e is not EPSILON), found=str(found),
+                expected=",".join(str(e) for e in expected if e is not EPSILON),
+                found=str(found),
             )
         )
 
@@ -65,11 +68,7 @@ class ParserOutput(ErrorHandler, ProductionHandler):
 
     def _replace_derivation(self, current, lhs, rhs):
         i = current.index(lhs)
-        return (
-            current[:i]
-            + [d for d in rhs if d is not EPSILON]
-            + current[i + 1 :]
-        )
+        return current[:i] + [d for d in rhs if d is not EPSILON] + current[i + 1 :]
 
     def derivation_variant(self):
         current = [self.derivations[-1][0]]

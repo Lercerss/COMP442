@@ -1,43 +1,60 @@
+import re
+
 from typing import List, Set
 
 from lex import Token, TokenType
 from syn.sets import EPSILON
 from .table import GLOBALS, SymbolTable, Record
 
-
-def warn(msg):
-    print("Semantic Warning: " + msg)
+EXTENSION = re.compile(r"\.src$")
 
 
-def error(msg):
-    print("Semantic Error: " + msg)
+class SemanticOutput:
+    def __init__(self):
+        self._errors = []
+        self.warned = False
+        self.failed = False
 
+    def warn(self, msg):
+        self._errors.append("Semantic Warning: " + msg)
+        self.warned = True
 
-def invalid_token(token: Token):
-    print(str(token))
+    def error(self, msg):
+        self._errors.append("Semantic Error: " + msg)
+        self.failed = True
 
+    def invalid_token(self, token: Token):
+        self._errors.append(str(token))
 
-def panic(expected: Set[TokenType], found: Token):
-    print(
-        "Syntax Error: Expected one of [{expected}] but found {found}".format(
-            expected=",".join(str(e) for e in expected if e is not EPSILON),
-            found=str(found),
+    def panic(self, expected: Set[TokenType], found: Token):
+        print(
+            "Syntax Error: Expected one of [{expected}] but found {found}".format(
+                expected=",".join(str(e) for e in expected if e is not EPSILON),
+                found=str(found),
+            )
         )
-    )
 
-
-def resume(skipped: List[Token], next_token: Token):
-    print(
-        "Recovery: Skipped [{skipped}]".format(
-            skipped=",".join(str(s) for s in skipped)
+    def resume(self, skipped: List[Token], next_token: Token):
+        print(
+            "Recovery: Skipped [{skipped}]".format(
+                skipped=",".join(str(s) for s in skipped)
+            )
         )
-    )
-    print("Recovery: Resuming at {next_token}".format(next_token=next_token))
+        print("Recovery: Resuming at {next_token}".format(next_token=next_token))
 
+    def success(self, source_file: str):
+        formatter = TableFormatter(GLOBALS)
 
-def success():
-    formatter = TableFormatter(GLOBALS)
-    print(formatter.output())  # TODO write to file instead
+        if self.failed:
+            print(source_file + ": Failed to compile")
+        elif self.warned:
+            print(source_file + ": Compiled with warnings")
+
+        with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
+            f.write("\n".join(self._errors))
+
+        with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
+            f.write(formatter.output())
 
 
 class HRule:
@@ -77,11 +94,6 @@ class TableFormatter:
         formats.append(HRule)
         return formats
 
-    def depth(self):
-        if self.sub_tables:
-            return max(table.depth() for table in self.sub_tables) + 1
-        return 1
-
     def update_column_sizes(self, max_columns: List[int]):
         for i in range(min(len(self.columns), len(max_columns))):
             self.columns[i] = max_columns[i]
@@ -103,7 +115,7 @@ class TableFormatter:
         out = []
         for line in self.lines:
             if line is HRule:
-                out.append("=" * (sum(self.columns) + 4 * self.depth()))
+                out.append("=")
             elif isinstance(line, TableFormatter):
                 out += [
                     "|     {}".format(l)

@@ -1,0 +1,36 @@
+class Foo {};
+
+class ValidSameNames {
+    public float test;
+    public test(float x) : float;
+    public test(integer x) : integer;
+    public test(integer x[]) : integer;
+    public test(integer x[2][]) : integer;
+    public test(float x, float y) : float;
+    public float Foo;
+    public float ValidSameNames;
+};
+
+class test {};
+
+class InvalidSameNames {
+    public float test;
+    public integer test;
+    public test(float x, float x) : float;
+};
+
+class BadOverloads {
+    public test(float x, float y) : float;
+    public test(float x, float z) : float;
+
+    public foo(float x, float y) : float;
+    public foo(float x, float y) : integer;
+
+    public bar(integer x[]) : integer;
+    public bar(integer x[5]) : integer;
+};
+
+main
+    do
+        write(1);
+    end

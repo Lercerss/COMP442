@@ -1,60 +1,21 @@
 from sem.visitor import Visitor
-from sem.table import GLOBALS, Record, RecordType, SymbolTable, SymbolType, VOID
+from sem.table import (
+    BaseType,
+    equal_params,
+    GLOBALS,
+    Record,
+    RecordType,
+    SymbolTable,
+    SymbolType,
+    VOID,
+)
 from syn.ast import ASTNode
 
 
 class TableBuilder(Visitor):
     def _visit_class_list(self, node: ASTNode):
-        # TODO Could use some refactoring
-        inheritance = {}
         for child in node.children:
-            inheritance[child.record.table.name] = [
-                parent.name for parent in child.record.table.inherits
-            ]
             GLOBALS.insert(child.record)
-
-        for child in node.children:
-            for parent in child.children[1].children:
-                if parent.token.lexeme not in inheritance:
-                    self.error(
-                        'Class "{name}" has not been declared: '
-                        "line {location.line}, column {location.column}".format(
-                            name=parent.token.lexeme, location=parent.token.location
-                        )
-                    )
-
-        cycles = set()
-        for class_, inherits in inheritance.items():
-            inherits = [(parent, [class_]) for parent in inherits]
-            count = 0
-            while inherits:
-                parent, introduced_by = inherits.pop(0)
-                if len(set(introduced_by)) != len(introduced_by):
-                    cycles.add(
-                        tuple(
-                            sorted(
-                                introduced_by[
-                                    : introduced_by.index(introduced_by.pop(0)) + 1
-                                ]
-                            )
-                        )
-                    )
-                    break
-                inherits += [
-                    (new_parent, [parent, *introduced_by])
-                    for new_parent in inheritance[parent]
-                ]
-                count += 1
-                if count > 15:
-                    raise RecursionError()  # TODO Remove debug
-
-        for cycle in cycles:
-            self.error("Class inheritance cycle found: {{{}}}".format(", ".join(cycle)))
-            # TODO Refactor error recovery? Needs some logging
-            inherits = SymbolType(cycle[0]).table.inherits
-            inherits.remove(
-                next(SymbolType(c) for c in cycle if SymbolType(c) in inherits)
-            )  # Break cycle
 
     def _visit_func_list(self, node: ASTNode):
         return
@@ -86,34 +47,39 @@ class TableBuilder(Visitor):
         table = SymbolTable("main")
         for child in node.children[0].children:  # Locals
             table.insert(child.record)
-        node.record = Record("main", VOID, RecordType.FUNCTION, table=table)
+        node.record = Record(
+            "main",
+            SymbolType("void", []),
+            RecordType.FUNCTION,
+            node.token.location,
+            params=[],
+            table=table,
+        )
 
     def _visit_class_decl(self, node: ASTNode):
         name = node.children[0].token.lexeme
         table = SymbolTable(
             name,
-            [SymbolType(inherit.token.lexeme) for inherit in node.children[1].children],
+            [BaseType(inherit.token.lexeme) for inherit in node.children[1].children],
         )
-        if SymbolType(name) in table.inherits:
-            # TODO Refactor error recovery? Needs some logging
-            table.inherits.remove(SymbolType(name))
-            self.error('Class "{}" cannot inherit from itself.'.format(name))
 
         for child in node.children[2].children:  # Members
             table.insert(child.record)
-        node.record = Record(name, None, RecordType.CLASS, table=table)
+        node.record = Record(
+            name, None, RecordType.CLASS, node.children[0].token.location, table=table
+        )
 
     def _visit_func_decl(self, node: ASTNode):
         # Only for member function
         node.record = Record(
             node.children[0].token.lexeme,
-            SymbolType(node.children[2].token.lexeme),
+            SymbolType(node.children[2].token.lexeme, []),
             RecordType.FUNCTION,
+            node.children[0].token.location,
             params=[param.record for param in node.children[1].children],
         )
 
     def _visit_func_def(self, node: ASTNode):
-        # TODO Could use some refactoring
         name = node.children[1].token.lexeme
         table = SymbolTable(name)
         params = [param.record for param in node.children[2].children]
@@ -125,31 +91,30 @@ class TableBuilder(Visitor):
 
         node.record = Record(
             name,
-            SymbolType(node.children[3].token.lexeme),
+            SymbolType(node.children[3].token.lexeme, []),
             RecordType.FUNCTION,
+            node.children[1].token.location,
             params=params,
             table=table,
         )
 
         scope = node.children[0].token
         if scope:
-            parent = SymbolType(scope.lexeme).table
+            parent = BaseType(scope.lexeme).table
             if not parent:
                 self.error(
-                    'Class "{name}" has not been declared: '
-                    "line {location.line}, column {location.column}".format(
-                        name=scope.lexeme, location=scope.location
-                    )
+                    'Class "{name}" has not been declared'.format(name=scope.lexeme),
+                    scope.location,
                 )
                 return
-            records = parent.search_member(name)
+            records = parent.entries.get(name, [])
             record = next(
                 (
                     r
                     for r in records
                     if r.record_type == RecordType.FUNCTION
-                    and r.params == params
-                    and r.type is node.record.type
+                    and equal_params(r.params, params)
+                    and r.type.base is node.record.type.base
                 ),
                 None,
             )
@@ -157,10 +122,12 @@ class TableBuilder(Visitor):
                 self.error(
                     'Member function "{scope}::{name}{type}" is defined but has not been declared'.format(
                         scope=scope.lexeme, name=name, type=node.record.format_type()
-                    )
+                    ),
+                    scope.location,
                 )
                 return
             record.table = table  # Attach table on existing record in the class table
+            table.inherits = [BaseType(scope.lexeme)]
             table.name = scope.lexeme + "::" + table.name
             node.record = record
         else:
@@ -173,17 +140,23 @@ class TableBuilder(Visitor):
     def _visit_var_decl(self, node: ASTNode):
         node.record = Record(
             node.children[1].token.lexeme,  # ID
-            SymbolType(node.children[0].token.lexeme),  # Type ID
+            SymbolType(
+                node.children[0].token.lexeme,
+                [child.token for child in node.children[2].children],
+            ),
             None,
-            [child.token for child in node.children[2].children],  # Dims
+            node.children[1].token.location,
         )
 
     def _visit_func_param(self, node: ASTNode):
         node.record = Record(
             node.children[1].token.lexeme,  # ID
-            SymbolType(node.children[0].token.lexeme),  # Type ID
+            SymbolType(
+                node.children[0].token.lexeme,
+                [child.token for child in node.children[2].children],
+            ),
             RecordType.PARAM,
-            [child.token for child in node.children[2].children],  # Dims
+            node.children[1].token.location,
         )
 
     def _visit_id(self, node: ASTNode):
@@ -193,15 +166,6 @@ class TableBuilder(Visitor):
         return
 
     def _visit_literal(self, node: ASTNode):
-        return
-
-    def _visit_rel_op(self, node: ASTNode):
-        return
-
-    def _visit_add_op(self, node: ASTNode):
-        return
-
-    def _visit_mult_op(self, node: ASTNode):
         return
 
     def _visit_visibility(self, node: ASTNode):

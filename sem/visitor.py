@@ -15,12 +15,20 @@ class Visitor(ABC):
     def visit(self, node: ASTNode):
         self.handlers[node.node_type](node)
 
-    def warn(self, msg: str):
+    def warn(self, msg: str, location=None):
         if self.output:
+            if location:
+                msg += ": line {location.line}, column {location.column}".format(
+                    location=location
+                )
             self.output.warn(msg)
 
-    def error(self, msg: str):
+    def error(self, msg: str, location=None):
         if self.output:
+            if location:
+                msg += ": line {location.line}, column {location.column}".format(
+                    location=location
+                )
             self.output.error(msg)
 
     @abstractmethod
@@ -33,18 +41,6 @@ class Visitor(ABC):
 
     @abstractmethod
     def _visit_literal(self, node: ASTNode):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def _visit_rel_op(self, node: ASTNode):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def _visit_add_op(self, node: ASTNode):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def _visit_mult_op(self, node: ASTNode):
         raise NotImplementedError()
 
     @abstractmethod

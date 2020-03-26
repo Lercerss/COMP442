@@ -5,12 +5,13 @@ from sem import analysis, output
 
 
 def run(f):
-    parser = Parser(f, error_handler=output)
+    out = output.SemanticOutput()
+    parser = Parser(f, error_handler=out)
     result = parser.start()
     if result.success:
-        analyzer = analysis.SemanticAnalyzer(result.ast, output=output)
+        analyzer = analysis.SemanticAnalyzer(result.ast, output=out)
         analyzer.start()
-        output.success()
+        out.success(f.name)
     else:
         print(f.name + ": Failed to parse")
 
