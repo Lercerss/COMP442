@@ -75,6 +75,9 @@ class RecordType(Enum):
         return str(self.name).lower()
 
 
+DATA_RECORD_TYPES = {RecordType.PARAM, RecordType.DATA, RecordType.LOCAL}
+
+
 class Record:
     def __init__(
         self,
@@ -137,6 +140,24 @@ class SymbolTable:
 
     def has_private_access(self, scope):
         return self.name.startswith(scope.name + "::")
+
+    def dependencies(self):
+        return self.inherits + list(
+            r.type.base
+            for records in self.entries.values()
+            for r in records
+            if r.type.base.table is not None and r.record_type in DATA_RECORD_TYPES
+        )
+
+    def remove_dependency(self, type_: BaseType):
+        if type_ in self.inherits:
+            self.inherits.remove(type_)
+        else:
+            for records in self.entries.values():
+                record = next((r for r in records if r.type.base == type_), None)
+                if record:
+                    records.remove(record)
+                    break
 
     def search_in_scope(self, name) -> List[Record]:
         return self.search_member(name, K.PRIVATE) + GLOBALS.search_member(name)

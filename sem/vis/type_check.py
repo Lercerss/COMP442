@@ -5,6 +5,7 @@ from lex.token import Keywords as K, Literals as L, Location, Operators as O
 from sem.visitor import Visitor
 from sem.table import (
     BOOLEAN,
+    DATA_RECORD_TYPES,
     equal_params,
     FLOAT,
     GLOBALS,
@@ -85,15 +86,7 @@ class TypeExtractor:
         is_first: bool,
     ) -> SymbolType:
         token = node.children[0].token
-        record = next(
-            (
-                r
-                for r in records
-                if r.record_type
-                in {RecordType.PARAM, RecordType.DATA, RecordType.LOCAL}
-            ),
-            None,
-        )
+        record = next((r for r in records if r.record_type in DATA_RECORD_TYPES), None,)
         if record is None:
             self.error(
                 'Use of undeclared {type} "{name}"'.format(

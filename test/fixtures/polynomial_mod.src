@@ -9,7 +9,7 @@ class LINEAR inherits POLYNOMIAL {
 	
 	public build(float A, float B) : LINEAR;
 	public evaluate(float x) : float;
-}
+};
 
 class QUADRATIC inherits POLYNOMIAL {
 	private float a;
@@ -18,13 +18,13 @@ class QUADRATIC inherits POLYNOMIAL {
 	
 	public build(float A, float B, float C) : QUADRATIC;
 	public evaluate(float x) : float;
-}
+};
 
 // ====== Function Definitions ====== //
 POLYNOMIAL::evaluate(float x) : float
   do
     return (0);
-  end
+  end;
 
 LINEAR::evaluate(float x) : float
   local
@@ -33,7 +33,7 @@ LINEAR::evaluate(float x) : float
     result = 0.0;
     result = a * x + b;
     return (result);
-  end
+  end;
   
 QUADRATIC::evaluate(float x) : float
   local
@@ -43,7 +43,7 @@ QUADRATIC::evaluate(float x) : float
     result = result * x + b;
     result = result * x + c;
     return (result);
-  end
+  end;
   
 LINEAR::build(float A, float B) : LINEAR
   local
@@ -52,7 +52,7 @@ LINEAR::build(float A, float B) : LINEAR
     new_function.a = A;
     new_function.b = B;
     return (new_function);
-  end  
+  end; 
   
 QUADRATIC::build(float A, float B, float C) : QUADRATIC
   local
@@ -62,7 +62,7 @@ QUADRATIC::build(float A, float B, float C) : QUADRATIC
     new_function.b = B;
     new_function.c = C;
     return (new_function);
-  end
+  end;
   
 
 // ====== main ====== //

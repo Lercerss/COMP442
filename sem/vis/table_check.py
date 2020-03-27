@@ -22,29 +22,29 @@ class TableCheck(Visitor):
         cycle = [type_.name for type_ in cycle]
         cycle_hash = tuple(sorted(cycle))
         if cycle_hash in self.cycles:
+            # Avoid reporting duplicate cycles
             return
 
         self.cycles.add(cycle_hash)
         self.error(
-            "Class inheritance cycle found {{{}}}".format("->".join(reversed(cycle))),
+            "Class dependency cycle found {{{}}}".format("->".join(reversed(cycle))),
             location,
         )
 
-    def check_inheritance_cycles(self, node: ASTNode):
+    def check_dependency_cycles(self, node: ASTNode):
         table = node.record.table
-        inherits = [(parent, [BaseType(table.name)]) for parent in table.inherits]
+        inherits = [(parent, [BaseType(table.name)]) for parent in table.dependencies()]
         count = 0  # TODO Remove debug
-        # TODO Need to take into account type of data members as well, not just inherits
         while inherits:
             parent, introduced_by = inherits.pop(0)
             if len(set(introduced_by)) != len(introduced_by):
                 cycle = introduced_by[: introduced_by.index(introduced_by.pop(0)) + 1]
                 self._add_cycle(cycle, node.children[0].token.location)
-                table.inherits.remove(cycle[-2])
+                table.remove_dependency(cycle[-2])
                 return
             inherits += [
                 (new_parent, [parent, *introduced_by])
-                for new_parent in parent.table.inherits
+                for new_parent in parent.table.dependencies()
             ]
             count += 1
             if count > 15:
@@ -156,7 +156,7 @@ class TableCheck(Visitor):
 
     def _visit_class_decl(self, node: ASTNode):
         self.check_basic_inheritance(node)
-        self.check_inheritance_cycles(node)
+        self.check_dependency_cycles(node)
         self.check_duplicate_entries(node.record.table, is_class_scope=True)
         self.check_shadowed_members(node.record.table)
 

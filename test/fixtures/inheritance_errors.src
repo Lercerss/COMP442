@@ -9,6 +9,11 @@ class B inherits A {};
 class C inherits A {};
 class D inherits B, C {};
 
+class Member inherits Inherited {};
+class Inherited {
+    public Member member;
+};
+
 class Same inherits Same {};
 
 class E inherits F {};

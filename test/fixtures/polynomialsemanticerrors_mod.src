@@ -4,10 +4,10 @@ class POLYNOMIAL inherits LINEAR {                                      // (14) 
 	public undefined() : void;                                          // (6) semantic error: undefined member function
         public integer a;
 	public float a;                                                     // (8) semantic error: multiply declared data member
-}
+};
 
-class A{}
-class A{}                                                               // (8) semantic error: multiply declared class
+class A{};
+class A{};                                                               // (8) semantic error: multiply declared class
 
 class LINEAR inherits POLYNOMIAL {
 	private float a;
@@ -16,17 +16,17 @@ class LINEAR inherits POLYNOMIAL {
 	
 	public build(float A, float B) : LINEAR;
 	public evaluate(float x) : float;
-}
+};
 
 class C {
         private float a;
 	public f(integer a): integer; 
-}
+};
 class D {
         private float a;                                                // (5) semantic warning: shadowed data member a
-        public f(integer x): integer                                    // (5) semantic warning : shadowed member function f(integer):integer
-        public f(float f): float                                        // (9) semantic warning : overloaded member function f(float):float
-}
+        public f(integer x): integer;                                    // (5) semantic warning : shadowed member function f(integer):integer
+        public f(float f): float;                                        // (9) semantic warning : overloaded member function f(float):float
+};
 
 class QUADRATIC inherits POLYNOMIAL {
 	private float a;
@@ -35,7 +35,7 @@ class QUADRATIC inherits POLYNOMIAL {
 	
 	public build(float A, float B, float C) : QUADRATIC;
 	public evaluate(float x) : float;
-}
+};
 
 // ====== Function Definitions ====== //
 
@@ -45,13 +45,13 @@ LINEAR::f() : void                                                      // (6) s
   do
     x = 1;
     notdeclared = 0;                                                    // (11) semantic error: use of undeclared local variable
-    return x;
-  end
+    return (x);
+  end;
 
 POLYNOMIAL::evaluate(float x) : float
   do
     return (0);
-  end
+  end;
 
 LINEAR::evaluate(float x) : float
   local
@@ -62,7 +62,7 @@ LINEAR::evaluate(float x) : float
     result = 0.0;
     result = a * x + b;
     return (result);
-  end
+  end;
   
 QUADRATIC::evaluate(float x) : float
   local
@@ -72,7 +72,7 @@ QUADRATIC::evaluate(float x) : float
     result = result * x + b;
     result = result * x + c;
     return (result);
-  end
+  end;
   
 LINEAR::build(float A, float B) : LINEAR
   local
@@ -83,7 +83,7 @@ LINEAR::build(float A, float B) : LINEAR
     new_function.undeclareddata = 1;                                     // (15) semantic error: use of undeclared data member
     new_function.undeclaredfunction();                                   // (15) semantic error: use of undeclared member function
     return (new_function);
-  end  
+  end;
   
 QUADRATIC::build(float A, float B, float C) : QUADRATIC
   local
@@ -93,17 +93,17 @@ QUADRATIC::build(float A, float B, float C) : QUADRATIC
     new_function.b = B;
     new_function.c = C;
     return (new_function);
-  end
+  end;
 
 f(integer p_arr[][][]): integer
   do
-    return 2.5 + 3.5 * 8.8;                                              // (10) semantic error: invalid value type returned
-  end
+    return (2.5 + 3.5 * 8.8);                                              // (10) semantic error: invalid value type returned
+  end;
 
 f(float x): integer                                                      // (9) semantic warning: overloaded free function f(float):integer
  do
-   return 1;
- end
+   return (1);
+ end;
  
 // ====== main ====== //
 main
