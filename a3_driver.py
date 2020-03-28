@@ -18,6 +18,7 @@ def main():
 
         print("Output at:\n" + f.replace(".src", ".outsymboltables"))
         print(f.replace(".src", ".outsemanticerrors"))
+        print(f.replace(".src", ".outsyntaxerrors"))
         print("----------------------------------------------")
 
 

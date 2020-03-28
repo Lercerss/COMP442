@@ -13,7 +13,7 @@ def run(f):
         analyzer.start()
         out.success(f.name)
     else:
-        print(f.name + ": Failed to parse")
+        out.fail(f.name)
 
 
 def main():

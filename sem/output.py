@@ -2,7 +2,7 @@ import re
 
 from typing import List, Set
 
-from lex import Token, TokenType
+from lex.token import Location, Token, TokenType
 from syn.sets import EPSILON
 from .table import GLOBALS, SymbolTable, Record
 
@@ -12,22 +12,23 @@ EXTENSION = re.compile(r"\.src$")
 class SemanticOutput:
     def __init__(self):
         self._errors = []
+        self._parse_errors = []
         self.warned = False
         self.failed = False
 
-    def warn(self, msg):
-        self._errors.append("Semantic Warning: " + msg)
+    def warn(self, msg, location):
+        self._errors.append((location or Location(-1, 0), "Semantic Warning: " + msg))
         self.warned = True
 
-    def error(self, msg):
-        self._errors.append("Semantic Error: " + msg)
+    def error(self, msg, location):
+        self._errors.append((location or Location(-1, 0), "Semantic Error: " + msg))
         self.failed = True
 
     def invalid_token(self, token: Token):
         self._errors.append(str(token))
 
     def panic(self, expected: Set[TokenType], found: Token):
-        print(
+        self._parse_errors.append(
             "Syntax Error: Expected one of [{expected}] but found {found}".format(
                 expected=",".join(str(e) for e in expected if e is not EPSILON),
                 found=str(found),
@@ -35,12 +36,21 @@ class SemanticOutput:
         )
 
     def resume(self, skipped: List[Token], next_token: Token):
-        print(
+        self._parse_errors.append(
             "Recovery: Skipped [{skipped}]".format(
                 skipped=",".join(str(s) for s in skipped)
             )
         )
-        print("Recovery: Resuming at {next_token}".format(next_token=next_token))
+        self._parse_errors.append(
+            "Recovery: Resuming at {next_token}".format(next_token=next_token)
+        )
+
+    def format_error(self, error):
+        if error[0].line < 0:
+            return error[1]
+        return error[1] + ": line {location.line}, column {location.column}".format(
+            location=error[0]
+        )
 
     def success(self, source_file: str):
         formatter = TableFormatter(GLOBALS)
@@ -51,10 +61,15 @@ class SemanticOutput:
             print(source_file + ": Compiled with warnings")
 
         with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
-            f.write("\n".join(self._errors))
+            f.write("\n".join(self.format_error(e) for e in sorted(self._errors)))
 
         with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
             f.write(formatter.output())
+
+    def fail(self, source_file: str):
+        print(source_file + ": Failed to parse")
+        with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
+            f.write("\n".join(self._parse_errors))
 
 
 class HRule:

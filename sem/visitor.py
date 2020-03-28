@@ -17,19 +17,11 @@ class Visitor(ABC):
 
     def warn(self, msg: str, location=None):
         if self.output:
-            if location:
-                msg += ": line {location.line}, column {location.column}".format(
-                    location=location
-                )
-            self.output.warn(msg)
+            self.output.warn(msg, location)
 
     def error(self, msg: str, location=None):
         if self.output:
-            if location:
-                msg += ": line {location.line}, column {location.column}".format(
-                    location=location
-                )
-            self.output.error(msg)
+            self.output.error(msg, location)
 
     @abstractmethod
     def _visit_id(self, node: ASTNode):
