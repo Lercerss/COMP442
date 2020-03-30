@@ -34,7 +34,6 @@ class TableCheck(Visitor):
     def check_dependency_cycles(self, node: ASTNode):
         table = node.record.table
         inherits = [(parent, [BaseType(table.name)]) for parent in table.dependencies()]
-        count = 0  # TODO Remove debug
         while inherits:
             parent, introduced_by = inherits.pop(0)
             if len(set(introduced_by)) != len(introduced_by):
@@ -46,9 +45,6 @@ class TableCheck(Visitor):
                 (new_parent, [parent, *introduced_by])
                 for new_parent in parent.table.dependencies()
             ]
-            count += 1
-            if count > 15:
-                raise RecursionError()  # TODO Remove debug
 
     def check_basic_inheritance(self, node: ASTNode):
         table = node.record.table

@@ -31,7 +31,6 @@ class TypeExtractor:
         self.warn = container.warn
 
     def visit(self, node: ASTNode) -> List[SymbolType]:
-        # TODO Make sure Nones are properly propagated or maybe use a try catch?
         types = [self.visit(c) for c in node.children]
         return self.handlers[node.node_type](node, types)
 
