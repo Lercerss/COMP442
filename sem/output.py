@@ -59,6 +59,8 @@ class SemanticOutput:
             print(source_file + ": Failed to compile")
         elif self.warned:
             print(source_file + ": Compiled with warnings")
+        else:
+            print(source_file + ": Compiled successfully")
 
         with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
             f.write("\n".join(self.format_error(e) for e in sorted(self._errors)))
@@ -66,10 +68,19 @@ class SemanticOutput:
         with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
             f.write(formatter.output())
 
+        with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
+            pass
+
     def fail(self, source_file: str):
         print(source_file + ": Failed to parse")
         with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
             f.write("\n".join(self._parse_errors))
+
+        with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
+            pass
+
+        with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
+            pass
 
 
 class HRule:
