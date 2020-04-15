@@ -175,8 +175,27 @@ class CodeGenerator(Visitor):
         self.prog.functions.append(func)
 
     def _visit_if_stat(self, node: ASTNode):
-        # TODO Implement
-        return
+        rel_expr = node.children[0]
+        register = rel_expr.code[-1].args[0]
+        name = self.mangle(self.scope.name, "func")
+        if_sym = self.mangle(name, "if")
+
+        node.code += rel_expr.code
+        _add_line(node.code, "bz", [register, if_sym + "else"], symbol=if_sym)
+
+        for stat in node.children[1].children:
+            node.code += stat.code
+
+        _add_line(node.code, "j", [if_sym + "done"])
+
+        temp = []
+        for stat in node.children[2].children:
+            temp += stat.code
+
+        if temp:
+            temp[0].symbol = if_sym + "else"
+            node.code += temp
+        _add_line(node.code, "nop", [], symbol=if_sym + "done")
 
     def _visit_assign_stat(self, node: ASTNode):
         # TODO Only works for local variables right now!
@@ -223,6 +242,20 @@ class CodeGenerator(Visitor):
             _add_line(node.code, "sw", ["0(r14)", register])
             _add_line(node.code, "j", [name + "return"])
 
+    def _visit_rel_expr(self, node: ASTNode):
+        lhs = node.children[0]
+        rhs = node.children[1]
+        node.code += lhs.code
+        node.code += rhs.code
+        with self.register() as lhs_reg, self.register() as rhs_reg, self.register() as res_reg:
+            node.code.append(self.load_in_reg(lhs, lhs_reg))
+            node.code.append(self.load_in_reg(rhs, rhs_reg))
+            _add_line(
+                node.code,
+                OP_TO_INSTRUCTION[node.token.token_type],
+                [res_reg, lhs_reg, rhs_reg],
+            )
+
     def _dyadic_expr(self, node: ASTNode):
         lhs = node.children[0]
         rhs = node.children[1]
@@ -237,9 +270,6 @@ class CodeGenerator(Visitor):
                 [res_reg, lhs_reg, rhs_reg],
             )
             _add_line(node.code, "sw", [node.record.memory_location(), res_reg])
-
-    def _visit_rel_expr(self, node: ASTNode):
-        self._dyadic_expr(node)
 
     def _visit_add_expr(self, node: ASTNode):
         self._dyadic_expr(node)

@@ -67,9 +67,7 @@ class TypeExtractor:
     def _visit_rel_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
         if self._binary_op(node, types) is None:
             return None
-        type_ = SymbolType(BOOLEAN, [])
-        self._temp_record(type_, node)
-        return type_
+        return SymbolType(BOOLEAN, [])
 
     def _visit_add_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
         type_ = self._binary_op(node, types)
