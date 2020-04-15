@@ -1,6 +1,9 @@
-**/__pycache__
+__pycache__
 venv
-**/.vscode
+.vscode
 A*_contents
 
-**/*.out*
+*.out*
+*.moon
+
+build

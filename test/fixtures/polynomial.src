@@ -1,3 +1,28 @@
+// Assignment 4 coverage:
+//      -------------
+//      | YES | NO  |
+//      ------------- 
+// 1.1: |  X  |     |
+// 1.2: |  X  |     |
+// 1.3: |  X  |     |
+// 1.4: |     |  X  |
+// 2.1: |  X  |     |
+// 2.2: |  X  |     |
+// 2.3: |  X  |     |
+// 2.4: |  X  |     |
+// 3.1: |  X  |     |
+// 3.2: |  X  |     |
+// 3.3: |  X  |     |
+// 3.4: |  X  |     |
+// 4.1: |     |  X  |
+// 4.2: |     |  X  |
+// 4.3: |  X  |     |
+// 4.4: |  X  |     |
+// 5.1: |  X  |     |
+// 5.2: |     |  X  |
+// 5.3: |  X  |     |
+//      -------------
+
 // ====== Class declarations ====== //
 class POLYNOMIAL {
 	public evaluate(float x) : float;
@@ -9,7 +34,7 @@ class LINEAR inherits POLYNOMIAL {
 	
 	public build(float A, float B) : LINEAR;
 	public evaluate(float x) : float;
-}
+};
 
 class QUADRATIC inherits POLYNOMIAL {
 	private float a;
@@ -18,68 +43,69 @@ class QUADRATIC inherits POLYNOMIAL {
 	
 	public build(float A, float B, float C) : QUADRATIC;
 	public evaluate(float x) : float;
-}
+};
 
 // ====== Function Definitions ====== //
-POLYNOMIAL::evaluate(float x) : float
+POLYNOMIAL::evaluate(float x) : float                             // 2.1, 2.2
   do
-    return (0);
-  end
+    return (0.0);                                                   // 2.3
+  end;
 
-LINEAR::evaluate(float x) : float
+LINEAR::evaluate(float x) : float                                 // 2.1, 2.2
   local
-    float result;
+    float result;                                                 // 1.1
   do
-    result = 0.0;
-    result = a * x + b;
-    return (result);
-  end
+    result = 0.0;                                                 // 3.1
+    result = a * x + b;                                           // 3.1, 5.1
+    return (result);                                              // 2.3
+  end;
   
-QUADRATIC::evaluate(float x) : float
+QUADRATIC::evaluate(float x) : float                              // 2.1, 2.2
   local
-    float result;
+    float result;                                                 // 1.1
   do    //Using Horner's method
-    result = a;
-    result = result * x + b;
-    result = result * x + c;
-    return (result);
-  end
+    result = a;                                                   // 3.1
+    result = result * x + b;                                      // 3.1, 5.1
+    result = result * x + c;                                      // 3.1, 5.1
+    return (result);                                              // 2.3
+  end;
   
-LINEAR::build(float A, float B) : LINEAR
+LINEAR::build(float A, float B) : LINEAR                          // 2.1, 2.2
   local
-    LINEAR new_function;
+    LINEAR new_function;                                          // 1.3
   do
-    new_function.a = A;
-    new_function.b = B;
-    return (new_function);
-  end  
+    new_function.a = A;                                           // 3.1, 5.3
+    new_function.b = B;                                           // 3.1, 5.3
+    return (new_function);                                        // 2.3
+  end; 
   
-QUADRATIC::build(float A, float B, float C) : QUADRATIC
+QUADRATIC::build(float A, float B, float C) : QUADRATIC           // 2.1, 2.2
   local
-    QUADRATIC new_function;
+    QUADRATIC new_function;                                       // 1.3
   do
-    new_function.a = A;
-    new_function.b = B;
-    new_function.c = C;
-    return (new_function);
-  end
+    new_function.a = A;                                           // 3.1, 5.3
+    new_function.b = B;                                           // 3.1, 5.3
+    new_function.c = C;                                           // 3.1, 5.3
+    return (new_function);                                        // 2.3
+  end;
   
 
 // ====== main ====== //
 main
   local
-    LINEAR f1;
-    QUADRATIC f2;
-    integer counter;
+    LINEAR f1;                                                    // 1.3
+    QUADRATIC f2;                                                 // 1.3
+    float counter;                                              // 1.1
   do
-    f1 = f1.build(2, 3.5);
-    f2 = f2.build(-2.0, 1.0, 0.0);
-    counter = 1;
+    f1 = f1.build(2.0, 3.5);                                        // 2.1, 2.2, 2.4
+    f2 = f2.build(-2.0, 1.0, 0.0);                                // 2.1, 2.2, 2.4
+    counter = 1.0;                                                  // 3.1
 	
-    while(counter <= 10)
+    while(counter <= 10.0)                                          // 3.3, 5.1
       do
-        write(counter);
-        write(f1.evaluate(counter));
-        write(f2.evaluate(counter));
+        write(counter);                                           // 3.4
+        write(f1.evaluate(counter));                              // 3.4, 2.1, 2.2, 2.4
+        write(f2.evaluate(counter));                              // 3.4, 2.1, 2.2, 2.4
+        counter = counter + 1.0;
       end;
   end

@@ -52,7 +52,7 @@ class SemanticOutput:
             location=error[0]
         )
 
-    def success(self, source_file: str):
+    def success(self, source_file: str) -> bool:
         formatter = TableFormatter(GLOBALS)
 
         if self.failed:
@@ -70,6 +70,8 @@ class SemanticOutput:
 
         with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
             pass
+
+        return len(self._errors) == 0
 
     def fail(self, source_file: str):
         print(source_file + ": Failed to parse")

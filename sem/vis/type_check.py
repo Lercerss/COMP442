@@ -34,6 +34,10 @@ class TypeExtractor:
         types = [self.visit(c) for c in node.children]
         return self.handlers[node.node_type](node, types)
 
+    def _temp_record(self, type_, node):
+        node.record = Record("", type_, RecordType.TEMP, None)
+        self.scope.insert(node.record)
+
     def _binary_op(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
         if None in types:
             return None
@@ -63,19 +67,29 @@ class TypeExtractor:
     def _visit_rel_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
         if self._binary_op(node, types) is None:
             return None
-        return SymbolType(BOOLEAN, [])
+        type_ = SymbolType(BOOLEAN, [])
+        self._temp_record(type_, node)
+        return type_
 
     def _visit_add_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
-        return self._binary_op(node, types)
+        type_ = self._binary_op(node, types)
+        self._temp_record(type_, node)
+        return type_
 
     def _visit_mult_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
-        return self._binary_op(node, types)
+        type_ = self._binary_op(node, types)
+        self._temp_record(type_, node)
+        return type_
 
     def _visit_not(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
-        return types[0]
+        type_ = types[0]
+        self._temp_record(type_, node)
+        return type_
 
     def _visit_sign(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
-        return types[0]
+        type_ = types[0]
+        self._temp_record(type_, node)
+        return type_
 
     def _type_for_data_member(
         self,
@@ -108,6 +122,7 @@ class TypeExtractor:
             )
             return None
 
+        node.record = record
         return SymbolType(record.type.base, record.type.dims[len(index_types) :])
 
     def _type_for_func_call(
@@ -140,6 +155,8 @@ class TypeExtractor:
                 node.children[0].token.location,
             )
             return None
+        self._temp_record(record.type, node)
+        node.record.table = record.table
         return record.type
 
     def _type_for_node(

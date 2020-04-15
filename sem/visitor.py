@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from itertools import chain
 
 from syn.ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
+from .table import SymbolTable
 
 
 class Visitor(ABC):
@@ -11,6 +12,7 @@ class Visitor(ABC):
             for node_type in chain(GroupNodeType, LeafNodeType, ListNodeType)
         }
         self.output = output
+        self.scope: SymbolTable = None
 
     def visit(self, node: ASTNode):
         self.handlers[node.node_type](node)

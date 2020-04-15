@@ -12,12 +12,16 @@ class BaseType:
         if name in cls.__instances:
             return cls.__instances[name]
         instance = super().__new__(cls)
+        instance.__is_new = True
         cls.__instances[name] = instance
         return instance
 
-    def __init__(self, name, simple_type=False):
-        self.name = name
-        self.simple_type = simple_type
+    def __init__(self, name, simple_type=False, size=0):
+        if self.__is_new:  # pylint: disable=access-member-before-definition
+            self.name = name
+            self.simple_type = simple_type
+            self._size = size
+            self.__is_new = False
 
     @property
     def table(self) -> "SymbolTable":
@@ -32,16 +36,20 @@ class BaseType:
             None,
         )
 
+    @property
+    def size(self) -> int:
+        return self._size if self.simple_type else self.table.current_size()
 
-FLOAT = BaseType("float", simple_type=True)
-INT = BaseType("integer", simple_type=True)
-VOID = BaseType("void", simple_type=True)
-BOOLEAN = BaseType("", simple_type=True)
+
+FLOAT = BaseType("float", simple_type=True, size=8)
+INT = BaseType("integer", simple_type=True, size=4)
+VOID = BaseType("void", simple_type=True, size=0)
+BOOLEAN = BaseType("boolean", simple_type=True, size=0)  # TODO Check size
 
 
 class SymbolType:
     def __init__(self, base: str, dims: List[Token]):
-        self.base = base if type(base) == BaseType else BaseType(base)
+        self.base: BaseType = base if type(base) == BaseType else BaseType(base)
         self.dims = dims
 
     def __eq__(self, other):
@@ -62,6 +70,16 @@ class SymbolType:
     def is_array(self):
         return len(self.dims) > 0
 
+    @property
+    def size(self) -> int:
+        size = self.base.size
+        for dim in self.dims:
+            if dim is None:
+                # TODO Handle arrays
+                continue
+            size *= int(dim.lexeme)
+        return size
+
 
 @unique
 class RecordType(Enum):
@@ -70,6 +88,7 @@ class RecordType(Enum):
     FUNCTION = auto()
     PARAM = auto()
     LOCAL = auto()
+    TEMP = auto()
 
     def __str__(self):
         return str(self.name).lower()
@@ -88,6 +107,7 @@ class Record:
         params: List["Record"] = None,
         visibility: TokenType = None,
         table: "SymbolTable" = None,
+        offset: int = 0,
     ):
         self.name = name
         self.type = type_
@@ -96,6 +116,7 @@ class Record:
         self.params = params
         self.visibility = visibility
         self.table = table
+        self.offset = offset
 
     def format_type(self) -> str:
         params = ""
@@ -109,6 +130,7 @@ class Record:
             values.append(self.format_type())
         if self.visibility:
             values.append(str(self.visibility))
+        values.append(str(self.offset))
         return values
 
     def __eq__(self, other):
@@ -120,6 +142,14 @@ class Record:
             and equal_params(self.params, other.params)
         )
 
+    def memory_location(self) -> str:
+        # TODO Right now this assumes the memory location is always calculated at compile time
+        if self.record_type in (RecordType.TEMP, RecordType.LOCAL, RecordType.PARAM):
+            # On the stack
+            return str(-self.offset) + "(r14)"
+        # TODO Handle class variables
+        return
+
 
 def equal_params(left: List[Record], right: List[Record]):
     if left is None or right is None:
@@ -128,21 +158,24 @@ def equal_params(left: List[Record], right: List[Record]):
 
 
 class SymbolTable:
-    def __init__(self, name: str, inherits: List[BaseType] = None):
+    def __init__(self, name: str, inherits: List[BaseType] = None, is_function=False):
         self.name = name
         self.inherits = inherits
+        self.is_function = is_function
         self.entries: Dict[str, List[Record]] = defaultdict(list)
+        self._temp_count = 0
 
     def insert(self, record: Record):
+        record.offset = sum(len(r) for r in self.entries.values())
+        if record.record_type == RecordType.TEMP:
+            record.name = self._temp_name()
         self.entries[record.name].append(record)
-        if record.table:
-            record.table.parent = self
 
     def has_private_access(self, scope):
         return self.name.startswith(scope.name + "::")
 
-    def dependencies(self):
-        return self.inherits + list(
+    def dependencies(self) -> List[BaseType]:
+        return (self.inherits or []) + list(
             r.type.base
             for records in self.entries.values()
             for r in records
@@ -174,6 +207,55 @@ class SymbolTable:
                 name, visibility if self.has_private_access(parent) else K.PUBLIC,
             )
         ]
+
+    def current_size(self) -> int:
+        return sum(
+            entry.type.size
+            for entries in self.entries.values()
+            for entry in entries
+            if entry.record_type != RecordType.FUNCTION
+        ) + sum(parent.size for parent in (self.inherits or []))
+
+    def _temp_name(self) -> str:
+        """Unique (per-scope) temporary variable names that dont conflict with user-defined names"""
+        self._temp_count += 1
+        return "_" + str(self._temp_count)
+
+    def _frame_offset(self) -> int:
+        if self.name == "main":
+            return 0
+
+        if "::" in self.name:
+            # Add space for `this`
+            return 8 + self.inherits[0].table.current_size()
+
+        if self.is_function:
+            # Reserve space for return value and return address
+            return 8
+
+        if self.inherits:
+            return sum(parent.size for parent in self.inherits)
+
+        return 0
+
+    def update_offsets(self):
+        records = [r for entries in self.entries.values() for r in entries]
+        records.sort(key=lambda r: r.offset)
+        size = self._frame_offset()
+        tables = []
+        for record in records:
+            if (
+                record.record_type == RecordType.FUNCTION
+                or record.record_type == RecordType.CLASS
+            ):
+                record.offset = 0
+                tables.append(record.table)
+                continue
+            record.offset = size
+            size += record.type.size
+
+        for table in tables:
+            table.update_offsets()
 
 
 GLOBALS = SymbolTable("global")

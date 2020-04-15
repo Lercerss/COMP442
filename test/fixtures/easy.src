@@ -1,0 +1,33 @@
+class Small {
+  private integer x;
+};
+
+class Large inherits Small{
+  private integer y;
+  private float array[20];
+  private integer z;
+};
+
+class Container {
+  private Large items[5];
+};
+
+f(integer a, integer b) : integer
+do
+  return(a * b);
+end;
+
+main
+  local
+    integer x;
+    integer y;
+    integer z;
+    integer a[3];
+    Large l;
+    Container c;
+  do
+    x = 1;
+    y = 2;
+    z = f(x, y);
+    write(z);
+  end

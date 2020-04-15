@@ -81,7 +81,7 @@ class TableBuilder(Visitor):
 
     def _visit_func_def(self, node: ASTNode):
         name = node.children[1].token.lexeme
-        table = SymbolTable(name)
+        table = SymbolTable(name, is_function=True)
         params = [param.record for param in node.children[2].children]
         for param in params:
             table.insert(param)

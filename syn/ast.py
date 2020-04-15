@@ -68,6 +68,7 @@ class ASTNode:
         self.children: List["ASTNode"] = []
         self.parent: "ASTNode" = None
         self.record: sem.table.Record = None
+        self.code = []
 
     def make_child(self, node_type: NodeType, token: Token = None) -> "ASTNode":
         """Create a new node and adopt it"""
@@ -115,6 +116,15 @@ class ASTNode:
 
     def accept(self, visitor):
         """Allow the visitor to recursively walk the AST"""
+        if (
+            (
+                self.node_type == GroupNodeType.FUNC_DEF
+                or self.node_type == GroupNodeType.MAIN
+            )
+            and self.record
+            and self.record.table
+        ):
+            visitor.scope = self.record.table
         for c in self.children:
             c.accept(visitor)
         visitor.visit(self)
