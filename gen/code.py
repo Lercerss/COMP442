@@ -6,15 +6,12 @@ from .vis.code_gen import CodeGenerator
 
 
 class Generator:
-    def __init__(self, root: ASTNode):
-        self.root = root
+    def __init__(self):
         self.prog = Prog()
         self.visitors = [CodeGenerator(self.prog)]
 
-    def start(self) -> str:
-        GLOBALS.update_offsets()
-
+    def start(self, root: ASTNode) -> str:
         for visitor in self.visitors:
-            self.root.accept(visitor)
+            root.accept(visitor)
 
         return self.prog.output()

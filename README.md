@@ -5,14 +5,25 @@ By Lucas Turpin - Winter 2020
 ## Usage
 
 ```bash
-./lexdriver.py <src>  # Runs the lexical analyzer on a single source file
-./syndriver.py <src>  # Runs the parser on a single source file
-./semdriver.py <src>  # Runs the semantic analyzer on a single source file
-./gendriver.py <src>  # Runs the code generation on a single source file
-./a1_driver.py  # Runs and prints the output of the lexical analyzer on every source file in ./test/lex/src/
-./a2_driver.py  # Runs the parser on every source file in ./test/syn/src/
-./a3_driver.py  # Runs the semantic analyzer on every source file in ./test/sem/src/
-./a4_driver.py  # Runs the code generation on every source file in ./test/fixtures/
+./driver.py <PHASE> <FILE>
+```
+
+```text
+usage: driver.py [-h] PHASE FILE
+
+COMP 442 Compiler for the Moon simulator
+
+positional arguments:
+  PHASE       One of "lex", "syn", "sem", "gen" or "exe"
+                lex: Performs lexical analysis
+                syn: Performs syntactic analysis
+                sem: Performs semantic analysis
+                gen: Performs code generation
+                exe: Generates and executes the corresponding moon output file
+  FILE        Source file to compile
+
+optional arguments:
+  -h, --help  show this help message and exit
 ```
 
 ## Dependencies

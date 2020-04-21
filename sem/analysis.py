@@ -5,11 +5,10 @@ from .table import GLOBALS
 
 
 class SemanticAnalyzer:
-    def __init__(self, root, output=None):
-        GLOBALS.entries.clear()
-        self.root = root
+    def __init__(self, output=None):
         self.visitors = [vis(output) for vis in (TableBuilder, TableCheck, TypeCheck)]
 
-    def start(self):
+    def start(self, root):
+        GLOBALS.entries.clear()
         for visitor in self.visitors:
-            self.root.accept(visitor)
+            root.accept(visitor)

@@ -320,6 +320,9 @@ class TypeCheck(Visitor):
                 node.token.location,
             )
 
+    def _visit_prog(self, node: ASTNode):
+        GLOBALS.update_offsets()
+
     def _visit_id(self, node: ASTNode):
         return
 
@@ -369,9 +372,6 @@ class TypeCheck(Visitor):
         return
 
     def _visit_arg_list(self, node: ASTNode):
-        return
-
-    def _visit_prog(self, node: ASTNode):
         return
 
     def _visit_main(self, node: ASTNode):

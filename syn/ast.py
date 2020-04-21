@@ -4,8 +4,6 @@ from typing import List
 
 from lex import Token
 
-import sem
-
 
 @unique
 class NodeType(Enum):
@@ -67,7 +65,7 @@ class ASTNode:
         self.token = token
         self.children: List["ASTNode"] = []
         self.parent: "ASTNode" = None
-        self.record: sem.table.Record = None
+        self.record: "sem.table.Record" = None
         self.code = []
 
     def make_child(self, node_type: NodeType, token: Token = None) -> "ASTNode":

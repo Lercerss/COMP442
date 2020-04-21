@@ -10,79 +10,44 @@ EXTENSION = re.compile(r"\.src$")
 
 
 class SemanticOutput:
-    def __init__(self):
-        self._errors = []
-        self._parse_errors = []
-        self.warned = False
-        self.failed = False
+    def __init__(self, source_file: str):
+        self.__errors = []
+        self.__errors_file = open(EXTENSION.sub(".outsemanticerrors", source_file), "w")
+        self.__tables_file = open(EXTENSION.sub(".outsymboltables", source_file), "w")
+        self.__warned = False
+        self.__failed = False
 
     def warn(self, msg, location):
-        self._errors.append((location or Location(-1, 0), "Semantic Warning: " + msg))
-        self.warned = True
+        self.__errors.append((location or Location(-1, 0), "Semantic Warning: " + msg))
+        self.__warned = True
 
     def error(self, msg, location):
-        self._errors.append((location or Location(-1, 0), "Semantic Error: " + msg))
-        self.failed = True
+        self.__errors.append((location or Location(-1, 0), "Semantic Error: " + msg))
+        self.__failed = True
 
-    def invalid_token(self, token: Token):
-        self._errors.append(str(token))
-
-    def panic(self, expected: Set[TokenType], found: Token):
-        self._parse_errors.append(
-            "Syntax Error: Expected one of [{expected}] but found {found}".format(
-                expected=",".join(str(e) for e in expected if e is not EPSILON),
-                found=str(found),
-            )
-        )
-
-    def resume(self, skipped: List[Token], next_token: Token):
-        self._parse_errors.append(
-            "Recovery: Skipped [{skipped}]".format(
-                skipped=",".join(str(s) for s in skipped)
-            )
-        )
-        self._parse_errors.append(
-            "Recovery: Resuming at {next_token}".format(next_token=next_token)
-        )
-
-    def format_error(self, error):
+    def __format_error(self, error):
         if error[0].line < 0:
             return error[1]
         return error[1] + ": line {location.line}, column {location.column}".format(
             location=error[0]
         )
 
-    def success(self, source_file: str) -> bool:
+    def tables(self):
+        self.__errors_file.write(
+            "\n".join(self.__format_error(e) for e in sorted(self.__errors))
+        )
+
         formatter = TableFormatter(GLOBALS)
+        self.__tables_file.write(formatter.output())
 
-        if self.failed:
-            print(source_file + ": Failed to compile")
-        elif self.warned:
-            print(source_file + ": Compiled with warnings")
-        else:
-            print(source_file + ": Compiled successfully")
+    def did_fail(self):
+        return self.__failed
 
-        with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
-            f.write("\n".join(self.format_error(e) for e in sorted(self._errors)))
+    def did_warn(self):
+        return self.__warned
 
-        with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
-            f.write(formatter.output())
-
-        with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
-            pass
-
-        return len(self._errors) == 0
-
-    def fail(self, source_file: str):
-        print(source_file + ": Failed to parse")
-        with open(EXTENSION.sub(".outsyntaxerrors", source_file), "w") as f:
-            f.write("\n".join(self._parse_errors))
-
-        with open(EXTENSION.sub(".outsemanticerrors", source_file), "w") as f:
-            pass
-
-        with open(EXTENSION.sub(".outsymboltables", source_file), "w") as f:
-            pass
+    def collect_files(self):
+        return [self.__errors_file.name, self.__tables_file.name]
 
 
 class HRule:

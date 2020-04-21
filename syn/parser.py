@@ -3,7 +3,7 @@ from collections import namedtuple
 from functools import wraps
 from typing import Generator, List, Set, Tuple
 
-from lex import Scanner, Token, TokenType
+from lex import Token, TokenType
 from .sets import *  # pylint: disable=unused-wildcard-import
 from .ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
 
@@ -44,20 +44,14 @@ class ErrorHandler(ABC):
     def resume(self, skipped: List[Token], next_token: Token):
         raise NotImplementedError()
 
-    @abstractmethod
-    def invalid_token(self, token: Token):
-        raise NotImplementedError()
-
 
 class Parser:
-    def __init__(self, source, prodcution_handler=None, error_handler=None):
-        self.scanner: Scanner = Scanner(source)
+    def __init__(self, prodcution_handler=None, error_handler=None):
         self.lookahead: Token = None
         self.current: Token = None
         self.token_iter: Generator[Token, None, None] = None
         self.prodcution_handler: ProductionHandler = prodcution_handler
         self.error_handler: ErrorHandler = error_handler
-        self.lex_errors = []
         self.success = True
 
     def _on_production(self, lhs: str, *rhs: List[str]):
@@ -72,17 +66,10 @@ class Parser:
         if self.error_handler:
             self.error_handler.resume(skipped, self.lookahead)
 
-    def _on_error_token(self, token):
-        if self.error_handler:
-            self.error_handler.invalid_token(token)
-
     def _next(self):
         self.current = self.lookahead
         self.lookahead = next(self.token_iter)
         while self._la_in(IGNORED_TOKENS):
-            if isinstance(self.lookahead.token_type, E):
-                self._on_error_token(self.lookahead)
-                self.lex_errors.append(self.lookahead)
             self.lookahead = next(self.token_iter)
         return self.current
 
@@ -120,12 +107,12 @@ class Parser:
 
         return self._panic(first_set, first_and_follow_set)
 
-    def start(self) -> ParserResult:
-        self.token_iter = iter(self.scanner)
+    def start(self, scanner) -> ParserResult:
+        self.token_iter = iter(scanner)
         self._next()
         root = ASTNode(GroupNodeType.PROG, self.lookahead)
         try:
-            if self._prog(root) and self._la_eq(G.EOF) and len(self.lex_errors) == 0:
+            if self._prog(root) and self._la_eq(G.EOF):
                 return ParserResult(self.success, root)
         except StopIteration:
             pass
