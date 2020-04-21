@@ -86,6 +86,9 @@ class Parser:
         match = self._la_eq(token_type)
         if not match:
             self._on_panic([token_type])
+            if token_type == S.SEMI_COLON:
+                # Missing semi-colon should not interfere with parsing next rule
+                return
 
         self._next()
         return match
@@ -455,10 +458,10 @@ class Parser:
                     and self._a_params(args)
                     and self._match(S.CLOSE_PAR)
                 ):
+                    if first:
+                        self._on_production("rept-idnest", EPSILON)
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
-                            if first:
-                                self._on_production("rept-idnest", EPSILON)
                             self._on_production(
                                 "idnest", "'id'", "'('", "aParams", "')'", "'.'"
                             )
@@ -469,7 +472,6 @@ class Parser:
                             ):
                                 return True
                     elif end_function_call and self._la_in(FOLLOW_function_call):
-                        self._on_production("rept-idnest", EPSILON)
                         self._on_production(
                             "functionCall",
                             "rept-idnest",
@@ -494,10 +496,10 @@ class Parser:
                 data_member.make_child(LeafNodeType.ID, self.current)
                 indexes = data_member.make_child(ListNodeType.INDEX_LIST)
                 if self._rept_indice(indexes):
+                    if first:
+                        self._on_production("rept-idnest", EPSILON)
                     if self._la_eq(S.DOT):
                         if self._match(S.DOT):
-                            if first:
-                                self._on_production("rept-idnest", EPSILON)
                             self._on_production("idnest", "'id'", "rept-indice", "'.'")
                             self._on_production("rept-idnest", "idnest", "rept-idnest")
                             if self._nested_var_or_call(
@@ -878,7 +880,7 @@ class Parser:
                 and self._rightrec_arith_expr(right)
             ):
                 if right.token:
-                    right.swap(add_expr)
+                    right.insert_commutative(add_expr)
                 self._on_production(
                     "rightrec-arithExpr", "addOp", "term", "rightrec-arithExpr"
                 )
@@ -898,7 +900,7 @@ class Parser:
                 and self._rightrec_term(right)
             ):
                 if right.token:
-                    right.swap(mult_expr)
+                    right.insert_commutative(mult_expr)
                 self._on_production(
                     "rightrec-term", "multOp", "factor", "rightrec-term"
                 )
@@ -948,7 +950,9 @@ class Parser:
             if self._nested_var_or_call(var, end_variable=True, end_function_call=True):
                 last_node = var.children[-1].node_type
                 if self._la_eq(S.ASSIGN) and last_node == GroupNodeType.DATA_MEMBER:
-                    assign = container.make_child(GroupNodeType.ASSIGN_STAT)
+                    assign = container.make_child(
+                        GroupNodeType.ASSIGN_STAT, self.lookahead
+                    )
                     assign.adopt(var)
                     if self._match(S.ASSIGN) and self._expr(assign):
                         self._on_production("assignStat", "variable", "'='", "expr")
@@ -957,6 +961,7 @@ class Parser:
                             return True
                 elif self._la_eq(S.SEMI_COLON) and last_node == GroupNodeType.F_CALL:
                     var.node_type = ListNodeType.F_CALL_STAT
+                    var.token = var.children[0].children[0].token
                     container.adopt(var)
                     if self._match(S.SEMI_COLON):
                         self._on_production("statement", "functionCall", "';'")

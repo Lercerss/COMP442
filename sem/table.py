@@ -38,7 +38,13 @@ class BaseType:
 
     @property
     def size(self) -> int:
-        return self._size if self.simple_type else self.table.current_size()
+        if self.simple_type:
+            return self._size
+
+        if self.table:
+            return self.table.current_size()
+
+        return 0
 
 
 FLOAT = BaseType("float", simple_type=True, size=8)
@@ -131,6 +137,7 @@ class Record:
         if self.visibility:
             values.append(str(self.visibility))
         values.append(str(self.offset))
+        values.append(str(self.size))
         return values
 
     def __eq__(self, other):
@@ -141,6 +148,15 @@ class Record:
             and self.record_type == other.record_type
             and equal_params(self.params, other.params)
         )
+
+    @property
+    def size(self) -> int:
+        if self.record_type == RecordType.FUNCTION:
+            return 0
+        elif self.record_type == RecordType.CLASS:
+            return self.table.current_size()
+
+        return self.type.size
 
     def memory_location(self) -> str:
         # TODO Right now this assumes the memory location is always calculated at compile time
@@ -249,10 +265,11 @@ class SymbolTable:
                 or record.record_type == RecordType.CLASS
             ):
                 record.offset = 0
-                tables.append(record.table)
+                if record.table is not self:
+                    tables.append(record.table)
                 continue
             record.offset = size
-            size += record.type.size
+            size += record.size
 
         for table in tables:
             table.update_offsets()

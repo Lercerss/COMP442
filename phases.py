@@ -84,6 +84,20 @@ class GenericOutput(lex_out.TokenOutput, syn_out.ParserOutput, sem_out.SemanticO
     def executable(self, exe: str):
         self.gen_out.write(exe)
 
+    def _print_errors(self):
+        errors = [e for e in lex_out.TokenOutput.list_errors(self)]
+        errors += [
+            (l, "Syntax " + e) for l, e in syn_out.ParserOutput.list_errors(self)
+        ]
+        errors += [
+            (l, "Semantic " + e) for l, e in sem_out.SemanticOutput.list_errors(self)
+        ]
+        for _, error in sorted(errors):
+            print(error[:-1])
+
+        if errors:
+            print()  # Padding
+
     def _print_status(self, phase):
         if lex_out.TokenOutput.did_fail(self):
             print(self.source_file + ": Invalid tokens found")
@@ -101,7 +115,8 @@ class GenericOutput(lex_out.TokenOutput, syn_out.ParserOutput, sem_out.SemanticO
             print(self.source_file + ": Failed to compile")
         elif sem_out.SemanticOutput.did_warn(self):
             print(self.source_file + ": Compiled with warnings")
-        elif self.did_fail():
+
+        if self.did_fail():
             return
 
         print(self.source_file + ": Compiled successfully")
@@ -116,7 +131,7 @@ class GenericOutput(lex_out.TokenOutput, syn_out.ParserOutput, sem_out.SemanticO
             return files
 
         files += sem_out.SemanticOutput.collect_files(self)
-        if phase == "sem":
+        if phase == "sem" or self.did_fail():
             return files
 
         return files + self.gen_out.collect_files()
@@ -128,6 +143,7 @@ class GenericOutput(lex_out.TokenOutput, syn_out.ParserOutput, sem_out.SemanticO
             print("\t" + f)
 
     def finish(self, phase):
+        self._print_errors()
         self._print_status(phase)
         self._list_files(phase)
 

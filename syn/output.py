@@ -25,7 +25,7 @@ class ParserOutput(ErrorHandler, ProductionHandler):
         self.__ast_file = open(EXTENSION.sub(".outast", source_file), "w")
         self.__errors_file = open(EXTENSION.sub(".outsyntaxerrors", source_file), "w")
         self.__derivations = []  # Forest of derivation sub-trees
-        self.__failed = False
+        self.__errors = []
 
     def __format_rule(self, lhs, rhs):
         return "{lhs} -> {rhs}\n".format(
@@ -51,24 +51,26 @@ class ParserOutput(ErrorHandler, ProductionHandler):
         self.__derivation_file.write(self.__format_rule(lhs, rhs))
 
     def panic(self, expected: Set[TokenType], found: Token):
-        self.__errors_file.write(
-            "PANIC: Expected one of [{expected}] but found {found}\n".format(
-                expected=",".join(str(e) for e in expected if e is not EPSILON),
-                found=str(found),
-            )
+        error_str = "Error: Expected one of [{expected}] but found {found}\n".format(
+            expected=",".join(str(e) for e in expected if e is not EPSILON),
+            found=str(found),
         )
-        self.__failed = True
+        self.__errors_file.write(error_str)
+        self.__errors.append((found.location, error_str))
 
     def resume(self, skipped, next_token):
-        self.__errors_file.write(
-            "PANIC: Skipped [{skipped}]\n".format(
+        if skipped:
+            skipped_str = "Warning: Skipped [{skipped}]\n".format(
                 skipped=",".join(str(s) for s in skipped)
             )
+            self.__errors_file.write(skipped_str)
+            self.__errors.append((skipped[0].location, skipped_str))
+
+        resuming_str = "Warning: Resuming at {next_token}\n".format(
+            next_token=next_token
         )
-        self.__errors_file.write(
-            "PANIC: Resuming at {next_token}\n".format(next_token=next_token)
-        )
-        self.__failed = True
+        self.__errors_file.write(resuming_str)
+        self.__errors.append((next_token.location, resuming_str))
 
     def __replace_derivation(self, current, lhs, rhs):
         i = current.index(lhs)
@@ -86,12 +88,12 @@ class ParserOutput(ErrorHandler, ProductionHandler):
             self.__derivation_variant_file.write(" ".join(current) + "\n")
 
     def ast(self, root: ASTNode):
-        if not self.__failed:
+        if len(self.__errors) == 0:
             self.__derivation_variant()
         self.__ast_file.write(root.to_xml() + "\n")
 
     def did_fail(self):
-        return self.__failed
+        return len(self.__errors) > 0
 
     def collect_files(self):
         files = [
@@ -99,7 +101,10 @@ class ParserOutput(ErrorHandler, ProductionHandler):
             self.__ast_file.name,
             self.__derivation_file.name,
         ]
-        if not self.__failed:
+        if len(self.__errors) == 0:
             files.append(self.__derivation_variant_file.name)
 
         return files
+
+    def list_errors(self):
+        return self.__errors

@@ -4,7 +4,7 @@ from typing import List, Set
 
 from lex.token import Location, Token, TokenType
 from syn.sets import EPSILON
-from .table import GLOBALS, SymbolTable, Record
+from .table import GLOBALS, SymbolTable, Record, RecordType
 
 EXTENSION = re.compile(r"\.src$")
 
@@ -18,11 +18,11 @@ class SemanticOutput:
         self.__failed = False
 
     def warn(self, msg, location):
-        self.__errors.append((location or Location(-1, 0), "Semantic Warning: " + msg))
+        self.__errors.append((location or Location(-1, 0), "Warning: " + msg))
         self.__warned = True
 
     def error(self, msg, location):
-        self.__errors.append((location or Location(-1, 0), "Semantic Error: " + msg))
+        self.__errors.append((location or Location(-1, 0), "Error: " + msg))
         self.__failed = True
 
     def __format_error(self, error):
@@ -48,6 +48,9 @@ class SemanticOutput:
 
     def collect_files(self):
         return [self.__errors_file.name, self.__tables_file.name]
+
+    def list_errors(self):
+        return [(e[0], self.__format_error(e) + "\n") for e in self.__errors]
 
 
 class HRule:
@@ -81,7 +84,7 @@ class TableFormatter:
         for records in table.entries.values():
             for record in records:
                 formats.append(record.format())
-                if record.table:
+                if record.table and record.record_type != RecordType.TEMP:
                     formats.append(TableFormatter(record.table))
 
         formats.append(HRule)

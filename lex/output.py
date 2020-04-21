@@ -10,8 +10,8 @@ class TokenOutput:
         super().__init__(source_file)
         self.__tokens_file = open(EXTENSION.sub(".outlextokens", source_file), "w")
         self.__errors_file = open(EXTENSION.sub(".outlexerrors", source_file), "w")
+        self.__errors = []
         self.__last_line = 1
-        self.__failed = False
 
     def token(self, token: Token):
         if isinstance(token.token_type, Errors):
@@ -28,12 +28,17 @@ class TokenOutput:
 
         self.__tokens_file.write(str(token) + " ")
 
-    def __write_error(self, token: Errors):
-        self.__errors_file.write(str(token) + "\n")
-        self.__failed = True
+    def __write_error(self, token: Token):
+        error_str = str(token) + "\n"
+        self.__errors.append((token.location, error_str))
+
+        self.__errors_file.write(error_str)
 
     def did_fail(self):
-        return self.__failed
+        return len(self.__errors) > 0
 
     def collect_files(self):
         return [self.__errors_file.name, self.__tokens_file.name]
+
+    def list_errors(self):
+        return self.__errors

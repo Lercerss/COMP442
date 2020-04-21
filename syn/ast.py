@@ -79,17 +79,25 @@ class ASTNode:
         self.children.append(node)
         node.parent = self
 
-    def swap(self, node: "ASTNode"):
-        """Swap given node for self
-        parent        parent
-          |     -->     |
-         node          self
-                        |
-                       node
-        """
-        self.parent, node.parent = node.parent, self
-        self.parent.children[self.parent.children.index(node)] = self
-        self.children = [node] + self.children  # Place as left-most child
+    def insert_commutative(self, node: "ASTNode"):
+        """Insert a new node into an existing commutative operator tree"""
+        top_children = self.children
+        self.children = node.children
+        node.children = top_children
+        for c in top_children:
+            c.parent = node
+
+        top_attributes = self.node_type, self.token
+        self.node_type, self.token = node.node_type, node.token
+        node.node_type, node.token = top_attributes
+
+        temp_node = node
+        children = temp_node.children
+        while temp_node.node_type == node.node_type and len(children) == 2:
+            temp_node = temp_node.children[0]
+            children = temp_node.children
+
+        temp_node.children = [self] + children
 
     def absorb(self):
         """Self becomes its first child"""

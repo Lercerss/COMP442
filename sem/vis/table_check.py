@@ -1,5 +1,6 @@
-from typing import List
 from collections import defaultdict
+from itertools import chain
+from typing import List
 
 from lex import Generic as G
 from sem.visitor import Visitor
@@ -10,13 +11,44 @@ from sem.table import (
     RecordType,
     SymbolTable,
 )
-from syn.ast import ASTNode
+from syn.ast import ASTNode, GroupNodeType, LeafNodeType, ListNodeType
+
+
+class ReturnVisitor:
+    def __init__(self, container):
+        self.handlers = {
+            node_type: getattr(self, "_visit_" + str(node_type), lambda n, t: any(t))
+            for node_type in chain(GroupNodeType, LeafNodeType, ListNodeType)
+        }
+        self.error = container.error
+
+    def visit(self, node: ASTNode) -> bool:
+        branches = [self.visit(c) for c in node.children]
+        return self.handlers[node.node_type](node, branches)
+
+    def _visit_return_stat(self, node: ASTNode, branches: List[bool]):
+        return True
+
+    def _visit_if_stat(self, node: ASTNode, branches: List[bool]):
+        return branches[1] and branches[2]  # Both stat_blocks must be True
+
+    def _visit_while_stat(self, node: ASTNode, branches: List[bool]):
+        return branches[1]
+
+    def _visit_stat_block(self, node: ASTNode, branches: List[bool]):
+        if not branches[-1]:
+            first_return = next(i for i, b in enumerate(branches) if b)
+            self.error(
+                "Unreachable statement", node.children[first_return + 1].token.location
+            )
+        return any(branches)
 
 
 class TableCheck(Visitor):
     def __init__(self, output=None):
         super().__init__(output=output)
         self.cycles = set()
+        self.return_visitor = ReturnVisitor(self)
 
     def _add_cycle(self, cycle: List[BaseType], location):
         cycle = [type_.name for type_ in cycle]
@@ -53,7 +85,7 @@ class TableCheck(Visitor):
             if parent.table is None:
                 table.inherits.remove(parent)
                 self.error(
-                    'Class "{name}" has not been declared'.format(name=parent.name),
+                    'Use of undeclared class "{name}"'.format(name=parent.name),
                     node.children[0].token.location,
                 )
 
@@ -158,6 +190,13 @@ class TableCheck(Visitor):
 
     def _visit_func_def(self, node: ASTNode):
         self.check_duplicate_entries(node.record.table)
+        if not self.return_visitor.visit(node.children[-1]):  # Visit stat_block
+            scope = node.children[0].token.lexeme if node.children[0].token else ""
+            token = node.children[1].token
+            self.error(
+                'Missing return statement for function "{}"'.format(scope + token.lexeme),
+                token.location,
+            )
 
     def _visit_func_decl(self, node: ASTNode):
         if node.record.table is None:
