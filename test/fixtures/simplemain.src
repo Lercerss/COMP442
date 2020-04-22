@@ -39,6 +39,8 @@ main
     ;
     z = 0;                                           // 3.1
     while(z<=10)                                     // 3.3, 5.1
+    do
       write(z);                                      // 3.4
-    ; 
+      z = z + 1;
+    end;
   end

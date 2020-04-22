@@ -50,7 +50,7 @@ class BaseType:
 FLOAT = BaseType("float", simple_type=True, size=8)
 INT = BaseType("integer", simple_type=True, size=4)
 VOID = BaseType("void", simple_type=True, size=0)
-BOOLEAN = BaseType("boolean", simple_type=True, size=0)  # TODO Check size
+BOOLEAN = BaseType("boolean", simple_type=True, size=0)
 
 
 class SymbolType:
@@ -76,15 +76,20 @@ class SymbolType:
     def is_array(self):
         return len(self.dims) > 0
 
+    def is_complex(self):
+        return self.is_array() or self.base.table is not None
+
+    def mul_for_dim(self, dim: int) -> int:
+        mul = 1
+        for dim in self.dims[dim + 1 :]:
+            if dim is None:
+                continue
+            mul *= int(dim.lexeme)
+        return mul * self.base.size
+
     @property
     def size(self) -> int:
-        size = self.base.size
-        for dim in self.dims:
-            if dim is None:
-                # TODO Handle arrays
-                continue
-            size *= int(dim.lexeme)
-        return size
+        return self.mul_for_dim(-1)
 
 
 @unique
@@ -158,12 +163,13 @@ class Record:
 
         return self.type.size
 
+    def is_pointer(self):
+        return self.record_type == RecordType.PARAM and self.type.is_complex()
+
     def memory_location(self) -> str:
-        # TODO Right now this assumes the memory location is always calculated at compile time
         if self.record_type in (RecordType.TEMP, RecordType.LOCAL, RecordType.PARAM):
             # On the stack
             return str(-self.offset) + "(r14)"
-        # TODO Handle class variables
         return
 
 
@@ -243,10 +249,12 @@ class SymbolTable:
 
         if "::" in self.name:
             # Add space for `this`
-            return 8 + self.inherits[0].table.current_size()
+            # TODO Handle floats?
+            return 8 + 4
 
         if self.is_function:
             # Reserve space for return value and return address
+            # TODO Handle floats?
             return 8
 
         if self.inherits:
@@ -269,7 +277,10 @@ class SymbolTable:
                     tables.append(record.table)
                 continue
             record.offset = size
-            size += record.size
+            if record.is_pointer():
+                size += 4
+            else:
+                size += record.size
 
         for table in tables:
             table.update_offsets()

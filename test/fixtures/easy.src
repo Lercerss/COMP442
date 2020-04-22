@@ -14,7 +14,7 @@ class Container {
 
 f(integer a, integer b) : integer
 do
-  return(a * b);
+  return(a * b + 3 + 5 * 2 * 4 / a * (b + a) + b + 15);
 end;
 
 main
@@ -26,8 +26,8 @@ main
     Large l;
     Container c;
   do
-    x = 1;
-    y = 2;
-    z = f(x, y);
-    write(z);
+    x = 4;
+    y = 5;
+    z = f(x, y); // 133
+    write(z + 2); // 135
   end

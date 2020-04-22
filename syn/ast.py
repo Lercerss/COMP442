@@ -66,6 +66,7 @@ class ASTNode:
         self.children: List["ASTNode"] = []
         self.parent: "ASTNode" = None
         self.record: "sem.table.Record" = None
+        self.temp_record: "sem.table.Record" = None
         self.code = []
 
     def make_child(self, node_type: NodeType, token: Token = None) -> "ASTNode":

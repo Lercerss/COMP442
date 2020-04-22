@@ -1,0 +1,65 @@
+class Integer {
+    private integer m_note;
+    public integer m_int;
+};
+
+class Point {
+    public integer x;
+    public integer y;
+    public Integer notes[2];
+};
+
+class Point3D inherits Point {
+    public integer z;
+};
+
+class Triangle {
+    public integer corners[3][2];
+    public sum(integer start) : integer;
+    public init() : void;
+};
+
+Triangle::sum(integer start) : integer
+  local
+    integer total;
+  do
+    total = start;
+    total = total + corners[0][0];
+    total = total + corners[0][1];
+    total = total + corners[1][0];
+    total = total + corners[1][1];
+    total = total + corners[2][0];
+    total = total + corners[2][1];
+    return(total);
+  end;
+
+Triangle::init() : void
+  do
+    corners[0][0] = 1;
+    corners[0][1] = 1;
+    corners[1][0] = 2;
+    corners[1][1] = 2;
+    corners[2][0] = 3;
+    corners[2][1] = 1;
+  end;
+
+main
+  local
+    integer arr[10];
+    Point3D my_p;
+    Triangle my_t;
+  do
+    arr[1] = 64;
+    write(arr[1]);
+    my_p.x = 1;
+    write(my_p.x);
+    my_p.z = 2;
+    write(my_p.z);
+    my_p.notes[1].m_int = 15;
+    write(my_p.notes[my_p.x].m_int);  // Member array of object
+
+    my_t.init();
+    write(my_t.sum(5));
+    my_t.corners[1][1] = 4;
+    write(my_t.sum(5));
+  end

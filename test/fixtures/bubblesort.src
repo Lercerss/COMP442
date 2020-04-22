@@ -37,6 +37,7 @@ bubbleSort(integer arr[], integer size) : void       // 2.1, 2.2
     temp = 0;                                        // 3.1
     while (i < n-1)                                  // 3.3, 5.1
       do
+        j = 0;
         while (j < n-i-1)                            // 3.3
           do 
             if (arr[j] > arr[j+1])                   // 3.2, 4.1, 5.1, 5.2

@@ -155,14 +155,16 @@ class GenericOutput(lex_out.TokenOutput, syn_out.ParserOutput, sem_out.SemanticO
         )
 
     def execute(self):
-        import subprocess, os
+        import subprocess, os, sys
 
         f = self.gen_out.collect_files()[0]
-        print("\nRunning " + f)
-        moon = subprocess.run(
-            [os.environ.get("MOON", "./moon"), f, "moon_processor/samples/lib.m",],
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
+        moon = os.environ.get("MOON", "./moon")
+
+        print("\nStarting the moon simulator at: " + moon)
+        print("-----------------------------------------------")
+        subprocess.run(
+            [moon, f, "moon_processor/samples/lib.m",],
+            stderr=sys.stdout,
+            stdout=sys.stdout,
+            stdin=sys.stdin,
         )
-        formatted = "\n\t".join(moon.stdout.decode("utf-8").split("\n"))
-        print("\n\t" + formatted)

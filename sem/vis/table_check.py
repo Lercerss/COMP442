@@ -8,6 +8,7 @@ from sem.table import (
     BaseType,
     equal_params,
     GLOBALS,
+    VOID,
     RecordType,
     SymbolTable,
 )
@@ -188,15 +189,21 @@ class TableCheck(Visitor):
         self.check_duplicate_entries(node.record.table, is_class_scope=True)
         self.check_shadowed_members(node.record.table)
 
-    def _visit_func_def(self, node: ASTNode):
-        self.check_duplicate_entries(node.record.table)
+    def check_has_return_stat(self, node: ASTNode):
         if not self.return_visitor.visit(node.children[-1]):  # Visit stat_block
             scope = node.children[0].token.lexeme if node.children[0].token else ""
             token = node.children[1].token
             self.error(
-                'Missing return statement for function "{}"'.format(scope + token.lexeme),
+                'Missing return statement for function "{}"'.format(
+                    scope + token.lexeme
+                ),
                 token.location,
             )
+
+    def _visit_func_def(self, node: ASTNode):
+        self.check_duplicate_entries(node.record.table)
+        if node.record.type.base != VOID:
+            self.check_has_return_stat(node)
 
     def _visit_func_decl(self, node: ASTNode):
         if node.record.table is None:

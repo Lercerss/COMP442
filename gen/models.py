@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from itertools import chain
 from typing import List, Dict
 
 
@@ -9,8 +10,8 @@ class Line:
         self.symbol = symbol
         self.comment = comment
 
-    def format(self) -> str:
-        out = " {symbol:7} {instruction:5} {args:15}".format(
+    def format(self, max_size) -> str:
+        out = (" {symbol:" + str(max_size) + "} {instruction:5} {args:15}").format(
             symbol=self.symbol or "",
             instruction=self.instruction,
             args=",".join(self.args),
@@ -21,14 +22,14 @@ class Line:
 
 
 class Function:
-    def __init__(self, name):
+    def __init__(self, name, lines=None):
         self.name = name
-        self.lines: List[Line] = []
+        self.lines: List[Line] = lines or []
 
-    def format(self) -> str:
+    def format(self, max_size) -> str:
         out = " % begin function {name} definition\n".format(name=self.name)
         for line in self.lines:
-            out += line.format() + "\n"
+            out += line.format(max_size) + "\n"
 
         return out + " % end function {name} definition\n".format(name=self.name)
 
@@ -36,19 +37,32 @@ class Function:
 class Prog:
     def __init__(self):
         self.functions: List[Function] = []
-        self.reserved: Dict[str, Line] = OrderedDict()
+        self.constants: Dict[str, Line] = OrderedDict()
 
-    def reserve(self, tag, size):
-        if tag in self.reserved:
+    def reserve(self, tag, size, comment=None):
+        if tag in self.constants:
             return
-        self.reserved[tag] = Line("res", [str(size)], symbol=tag)
+        self.constants[tag] = Line("res", [str(size)], symbol=tag, comment=comment)
+
+    def store_constant(self, tag, *value, comment=None):
+        if tag in self.constants:
+            return
+        self.constants[tag] = Line("db", value, symbol=tag, comment=comment)
 
     def output(self) -> str:
         executable = ""
+        max_size = max(
+            (len(l.symbol) for f in self.functions for l in f.lines if l.symbol),
+            default=1,
+        )
+        max_size = max(max_size, 7)
         for func in self.functions:
-            executable += func.format() + "\n"
+            executable += func.format(max_size) + "\n"
 
-        for line in self.reserved.values():
-            executable += line.format() + "\n"
+        executable += " % Constants\n"
+        executable += " " * max_size + "  align\n"
+
+        for line in self.constants.values():
+            executable += line.format(max_size) + "\n"
 
         return executable

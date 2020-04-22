@@ -120,6 +120,11 @@ class TypeExtractor:
             )
             return None
 
+        if index_types:
+            # Reserve space for offset calculation
+            node.temp_record = Record("", SymbolType(INT, []), RecordType.TEMP, None)
+            self.scope.insert(node.temp_record)
+
         node.record = record
         return SymbolType(record.type.base, record.type.dims[len(index_types) :])
 
