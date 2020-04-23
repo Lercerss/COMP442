@@ -1,0 +1,25 @@
+class MyClass inherits Other {
+    
+    // MyClass has some doc
+    
+    private float _member1;
+    public integer member2;
+
+    public method(float test){
+        float good = 12.345e-78;
+        float okay = 0.0;
+        return okay / good * test;
+    }
+    
+    /* This is a good block comment!
+     * It spans over multiple lines
+     * It can be as big as you need
+The extra star is just for style
+    */
+
+    // Nested block comments are not supported
+    /* Level 1 /* Level 2 */ */
+
+
+    /* This is a bad block comment! * /
+}

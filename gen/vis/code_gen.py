@@ -331,7 +331,6 @@ class CodeGenerator(Visitor):
         self.prog.reserve("buf", 20, comment="str buffer")
 
         # TODO Only works for integers
-        # TODO Might need work for arrays
         child = node.children[0]
         node.code += child.code
 

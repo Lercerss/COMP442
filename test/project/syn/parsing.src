@@ -1,0 +1,57 @@
+class Small {
+  public integer x;                                         // 3.1.5 member
+};
+
+class Large inherits Small {                                // 3.1.5 inherits
+  private float y;
+  private integer array[20][2];                             // 3.1.5 member array
+  private integer z;
+  public sum(integer start) : integer;                      // 3.1.4 method
+};
+
+class Container {
+  public Large items[5];                                    // 3.1.5 member array of objects
+  public Small small;                                       // 3.1.5 member object
+};
+
+Large::sum(integer start) : integer
+  local
+    integer total;
+    integer i;
+  do
+    total = start;
+    i = 0;
+    while(i < 20)
+    do
+      total = total + array[i][0];
+      total = total + array[i][1];
+      i = i + 1;
+    end;
+  end;
+
+f(integer a, integer b) : integer                           // 3.1.3 free function
+do
+  return(a * b);                                            // 3.1.9 return
+end;
+
+main                                                        // 3.1.2 main
+  local
+    integer x;
+    integer y;
+    integer z;                                              // 3.1.1 local
+    integer a[3];                                           // 3.1.1 local array
+    Large l;                                                // 3.1.1 local object
+    Container c;                                            // 3.1.1 local object
+    Small s[10];                                            // 3.1.1 local array of objects
+    Small s3d[4][4][4];                                     // 3.1.1 multi-dimensional array
+  do
+    x = 4;
+    y = 5;
+    z = f(x, y);
+    write(z + 2);                                           // 3.1.9 write
+    z = s3d[y - x + x / 2][x - y + 1 * 3][-(y - 6) * 3];    // 3.1.11 indexing
+    read(x);                                                // 3.1.9 read
+
+    z = c.items[0].sum(2);                                  // 3.1.10 member access
+    z = c.items[0].x;                                       // 3.1.10 member access
+  end

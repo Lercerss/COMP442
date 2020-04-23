@@ -1,0 +1,39 @@
+main
+  local
+    integer n;
+    integer i;
+    integer j;
+  do
+    n = 0;
+    i = 1;
+
+
+    while(n < 100)                  // 3.1.8 while
+      while(j < n - i)
+        do
+          n = j + i;
+          i = i + i;
+        end;
+    ;
+
+
+    if(n < j)                       // 3.1.7 if
+    then
+      if(j < i)
+      then
+        do
+          write(j);
+          write(i);
+        end
+      else
+        // Empty else
+      ;
+    else
+      if(i < j)
+      then
+        // Empty then
+      else
+        write(n);
+      ;
+    ;
+  end

@@ -1,0 +1,20 @@
+main
+  local
+    integer n;
+    integer i;
+    integer j;
+    integer a[10][20][30];
+    integer b[100][20];
+  do
+    read(n);
+    read(i);
+    read(j);
+
+    a[i * j + 5 - 79][+i + j * -(n - 8 * j)][b[0][0]] = n * j * i;
+
+    if(i * j + 5 - 79 >= +i + j * -(n - 8 * j))
+    then
+      write(i);
+    else
+    ;
+  end
