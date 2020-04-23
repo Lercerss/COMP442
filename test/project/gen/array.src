@@ -17,7 +17,6 @@ class Triangle {
     public integer corners[3][2];
     public sum(integer start) : integer;
     public init() : void;
-    public copy(Triangle other) : void;
 };
 
 Triangle::sum(integer start) : integer
@@ -49,7 +48,6 @@ main
     integer arr[10];
     Point3D my_p;
     Triangle my_t;
-    Triangle second_t;
   do
     arr[1] = 64;
     write(arr[1]);
@@ -64,7 +62,4 @@ main
     write(my_t.sum(5));
     my_t.corners[1][1] = 4;
     write(my_t.sum(5));
-
-    second_t.copy(my_t);
-    write(second_t.sum(5));
   end
