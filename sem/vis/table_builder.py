@@ -103,7 +103,7 @@ class TableBuilder(Visitor):
             parent = BaseType(scope.lexeme).table
             if not parent:
                 self.error(
-                    'Class "{name}" has not been declared'.format(name=scope.lexeme),
+                    'Use of undeclared class "{name}"'.format(name=scope.lexeme),
                     scope.location,
                 )
                 return

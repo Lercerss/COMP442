@@ -1,0 +1,33 @@
+class Small {
+  private integer x;
+};
+
+class Large inherits Small{
+  private integer y;
+  private float array[20];
+  private integer z;
+};
+
+class Container {
+  private Large items[5];
+};
+
+f(integer a, integer b) : integer
+do
+  return(a * b + 3 + 5 * 2 * 4 / a * (b + a) + b + 15);
+end;
+
+main
+  local
+    integer x;
+    integer y;
+    integer z;
+    integer a[3];
+    Large l;
+    Container c;
+  do
+    x = 4;
+    y = 5;
+    z = f(x, y); // 133
+    write(z + 2); // 135
+  end

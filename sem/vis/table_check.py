@@ -37,7 +37,10 @@ class ReturnVisitor:
         return branches[1]
 
     def _visit_stat_block(self, node: ASTNode, branches: List[bool]):
-        if not branches[-1]:
+        if not branches:
+            return False
+
+        if not branches[-1] and any(branches):
             first_return = next(i for i, b in enumerate(branches) if b)
             self.error(
                 "Unreachable statement", node.children[first_return + 1].token.location
@@ -149,7 +152,11 @@ class TableCheck(Visitor):
 
     def check_shadowed_members(self, table: SymbolTable):
         for name, records in table.entries.items():
-            parent_records = [r for r in table.search_member(name) if r not in records]
+            parent_records = [
+                pr
+                for pr in table.search_member(name)
+                if all(pr is not r for r in records)
+            ]
             data_member = next(
                 (r for r in records if r.record_type == RecordType.DATA), None
             )
@@ -195,7 +202,7 @@ class TableCheck(Visitor):
             token = node.children[1].token
             self.error(
                 'Missing return statement for function "{}"'.format(
-                    scope + token.lexeme
+                    scope + "::" + token.lexeme
                 ),
                 token.location,
             )

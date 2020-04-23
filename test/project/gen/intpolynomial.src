@@ -1,0 +1,80 @@
+// ====== Class declarations ====== //
+class POLYNOMIAL {
+    public evaluate(integer x) : integer;
+};
+
+class LINEAR inherits POLYNOMIAL {
+    private integer a;
+    private integer b;
+    
+    public build(integer A, integer B) : void;
+    public evaluate(integer x) : integer;
+};
+
+class QUADRATIC inherits POLYNOMIAL {
+    private integer a;
+    private integer b;
+    private integer c;
+    
+    public build(integer A, integer B, integer C) : void;
+    public evaluate(integer x) : integer;
+};
+
+// ====== Function Definitions ====== //
+POLYNOMIAL::evaluate(integer x) : integer
+  do
+    return (0);
+  end;
+
+LINEAR::evaluate(integer x) : integer
+  local
+    integer result;
+  do
+    result = 0;
+    result = a * x + b;
+    return (result);
+  end;
+  
+QUADRATIC::evaluate(integer x) : integer
+  local
+    integer result;
+  do    //Using Horner's method
+    result = a;
+    result = result * x + b;
+    result = result * x + c;
+    return (result);
+  end;
+  
+LINEAR::build(integer A, integer B) : void
+  do
+    a = A;
+    b = B;
+  end; 
+  
+QUADRATIC::build(integer A, integer B, integer C) : void
+  do
+    a = A;
+    b = B;
+    c = C;
+  end;
+  
+
+// ====== main ====== //
+main
+  local
+    LINEAR f1;
+    QUADRATIC f2;
+    integer counter;
+  do
+    f1.build(2, 4);
+    f2.build(-2, 1, 0);
+    counter = 1;
+
+    while(counter <= 10)
+      do
+        write(counter);
+        write(f1.evaluate(counter));
+        write(f2.evaluate(counter));
+        counter = counter + 1;
+      end;
+  end

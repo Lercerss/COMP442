@@ -35,20 +35,12 @@ class TypeExtractor:
         return self.handlers[node.node_type](node, types)
 
     def _temp_record(self, type_, node):
-        node.record = Record("", type_, RecordType.TEMP, None)
-        self.scope.insert(node.record)
+        if type_:
+            node.record = Record("", type_, RecordType.TEMP, None)
+            self.scope.insert(node.record)
 
     def _binary_op(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:
         if None in types:
-            return None
-
-        if types[0] != types[1]:
-            self.error(
-                'Mismatched types "{left}" and "{right}" for "{bin_op}" operator'.format(
-                    bin_op=node.token.lexeme, left=types[0], right=types[1]
-                ),
-                node.token.location,
-            )
             return None
 
         expected_types = (
@@ -62,6 +54,16 @@ class TypeExtractor:
                 node.token.location,
             )
             return None
+
+        if types[0] != types[1]:
+            self.error(
+                'Mismatched types "{left}" and "{right}" for "{bin_op}" operator'.format(
+                    bin_op=node.token.lexeme, left=types[0], right=types[1]
+                ),
+                node.token.location,
+            )
+            return None
+
         return types[0]
 
     def _visit_rel_expr(self, node: ASTNode, types: List[SymbolType]) -> SymbolType:

@@ -273,7 +273,7 @@ class SymbolTable:
                 or record.record_type == RecordType.CLASS
             ):
                 record.offset = 0
-                if record.table is not self:
+                if record.table is not self and record.table is not None:
                     tables.append(record.table)
                 continue
             record.offset = size
